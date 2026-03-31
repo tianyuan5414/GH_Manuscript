@@ -1,0 +1,2701 @@
+---
+title: "GH2025_Manuscript"
+author: "Tianyuan"
+date: "2026-03-21"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r environment setup for FTIR spectra correction and normalisation, include = FALSE}
+#Load necessary packages
+{
+  #Read OPUS files
+  library(opusreader)
+  
+  #Smoothing
+  library(prospectr)
+  
+  #Baseline correction
+  library(baseline)
+}
+
+#Declare necessary functions
+{
+  #Declare a function to automatically split the name of spectral file, 
+    #to get all necessary
+    #folderNames - single character string, the original file name to be split
+      #to extract the batch information
+    #seperator - single character string, the symbol used in the original file 
+      #name for separating different types of batch information
+    #defaultSettings - vector with length of 10, indicating the default batch
+      #information
+  namesSplit <- function(folderNames, seperator, defaultSettings) {
+    
+    splitedNames <- defaultSettings
+    
+    #Split the names
+    splitedNamesRaw <- strsplit( x = folderNames, split = seperator)[[1]]
+    
+    #Check the information given in the folder name, 
+    #and change the corresponding sections in output if necessary
+    if(splitedNamesRaw[2] != 'GH'){
+      
+      splitedNames[c(1:8, 10)] <- splitedNamesRaw[c(1:9)]
+      
+    } else if(splitedNamesRaw[4] == 'cul'){
+      
+      splitedNames[c(1,3:8, 10)] <- splitedNamesRaw[c(1:8)]
+      
+    }else {
+      
+      splitedNames[c(1,3:10)] <- splitedNamesRaw[c(1:9)]
+      
+    }
+    
+    if(splitedNamesRaw[5]  == 'ROOF' | splitedNamesRaw[6] == 'ROOF') {
+      
+      splitedNames[c(1,3:5, 8,10)]  <- splitedNamesRaw[c(1,5,3,4,6,7)]
+      
+      splitedNames[c(6,7,9)]  <- NA
+      
+    }
+
+    return(splitedNames)
+  }
+  
+  #Declare a function to calculate the number of all elements in a list given
+    #tempList - list to be used for calculation
+  numOfEle <- function(tempList) {
+    
+    #Vector storing the number
+    tempVec <- 0
+    
+    for (loopI in 1:length(tempList)) {
+      tempVec <- tempVec + length(tempList[[loopI]])
+    }
+    
+    return(tempVec)
+  }
+  
+  #Create a function to re-sample data according to given sequence from a vector
+    #tempVec - numeric vector, the FTIR spectrum signals at original wavenumbers
+    #inputSeq - numeric vector, the sequence of wavenumber for input FTIR 
+      #spectrum
+    #outputSeq - numeric vector, the sequence of wavenumber to be output
+  resamData <- function(tempVec, inputSeq, outputSeq){
+    tempOutVec <- approx(x = inputSeq,
+                         y = tempVec,
+                         xout = outputSeq)[[2]]
+    
+    return(tempOutVec)
+  }
+  
+  #Function to normalise the spectral absorbance to maximum intensity
+    #x - numeric vector, the FTIR spectrum to be normalised
+  zstandMax <- function(x) {
+    return((x - mean(x))/ sd(x))
+  }
+}
+```
+
+### FTIR spectra reading and format convertion. 
+The original FTIR spectra collected from NMBU lab were in format of OPUS, which require a conversion to readable and editable format
+```{r OPUS data reading and conversion, include = FALSE}
+#Read all OPUS files
+{
+  #List all the folder for different measuring days
+  daysVec <- list.files(path = file.path('..', 'Data_R', 'FTIR_Raw_Spectra/'))
+  
+  #Loop to list all .o files in each folder above
+  #List for storing all names of spectra files
+  namesList <- list()
+  for (loopI in 1:length(daysVec)) {
+   
+    namesList[[length(namesList) + 1]] <- 
+      list.files(path = file.path('..', 'Data_R', 'FTIR_Raw_Spectra',
+                                  daysVec[loopI]), 
+                 pattern = '\\.0$')
+     
+  }
+  
+  #Loop to read all spectra
+  #List for storing all spectra
+  rawSpecList <- list()
+  
+  #Matrix for storing all batch information
+  rawSpecBatchInfo <- matrix(nrow = numOfEle(namesList),
+                             ncol = 10,
+                             dimnames = list(c(),
+                                             c('Exp_Year',
+                                               'Sample_Year',
+                                               'Location',
+                                               'Species',
+                                               'Materials',
+                                               'Group',
+                                               'Treatment',
+                                               'Sample_ID',
+                                               'Sample_Dup',
+                                               'FTIR_Dup')))
+  
+  
+  #Two recorders on row index for matrix filling
+  tempInd <- 0
+  
+  for (loopI in 1:length(daysVec)) {
+    
+    rawSpecList[[loopI]] <- list()
+    
+    for (loopJ in 1:length(namesList[[loopI]])) {
+      rawSpecList[[loopI]][[loopJ]] <- 
+        opus_read(file = 
+                    file.path('..',
+                              'Data_R',
+                              'FTIR_Raw_Spectra',
+                              daysVec[loopI], 
+                              namesList[[loopI]][loopJ]
+                              ),
+                  simplify = TRUE)
+      
+      #Extract the sample information from the file names at the same time
+      tempVec <- namesSplit(substr(namesList[[loopI]][loopJ],
+                                   1,
+                                   nchar(namesList[[loopI]][loopJ]) - 2), '_',
+                            c(2025,2025,
+                              'GH', 'Pmu', 
+                              'cul', 'A', 
+                              'UV', '001',
+                              '1', '1'))
+      
+        
+      tempInd <- tempInd + 1
+      
+      rawSpecBatchInfo[tempInd,] <- tempVec
+    
+      rm(tempVec)
+    }
+  }
+  
+  #Create a matrix to store all raw spectra
+  rawSpecMat <- matrix(nrow = numOfEle(namesList),
+                       ncol = length(rawSpecList[[1]][[1]][['spec']]),
+                       dimnames = list(c(),
+                                       c(rawSpecList[[1]][[1]][['wavenumbers']])
+                                       )
+                       )
+  
+  #Loop to fill the matrix
+  #Create a vector recording the current index
+  tempIndRawSpec <- 0
+  
+  for (loopI in 1:length(rawSpecList)) {
+    
+    for (loopJ in 1:length(rawSpecList[[loopI]])) {
+      
+      tempIndRawSpec <- tempIndRawSpec + 1
+      
+      rawSpecMat[tempIndRawSpec,] <- rawSpecList[[loopI]][[loopJ]][['spec']]
+    }
+  }
+  
+  #Re-sample the spectra to a fixed sequence of wavenumber
+  #Specify the target wavenumber sequence
+  tempWaveSeq <- seq(from = 3996, to = 600, by = -4)
+  
+  rawSpecResamMat <- t(apply(rawSpecMat, 1, 
+                           FUN = resamData, 
+                           inputSeq = as.numeric(colnames(rawSpecMat)),
+                           outputSeq = tempWaveSeq))
+  
+  colnames(rawSpecResamMat) <- tempWaveSeq
+  
+  #Remove redundant variables
+  rm(loopI,
+     loopJ,
+     tempInd,
+     tempIndRawSpec)
+}
+```
+
+### Correction and standardisation on raw FTIR spectra. 
+The FTIR spectra used further for all analysing purposes in the manuscript were firstly corrected following the routes of: 1. Smoothing(savitzkyGolay, m = 0, p = 2, w = 11) and baseline correction (baseline.modpolyfit, degree = 3, tol = 0.00002, rep = 100)
+
+```{r smoothing and baseline correction on raw FTIR spectra, include = FALSE}
+#Smoothing and baseline correction
+{
+  #Apply savitzky-Golay filter
+  smooSpec <- savitzkyGolay(apply(rawSpecResamMat, c(1,2), as.numeric),
+                            m = 0, p = 2, w = 11)
+  
+  #Apply polynomial linear baseline model
+  bcSpec <- baseline.modpolyfit(smooSpec,
+                                degree = 3, tol = 0.00002, 
+                                rep = 100)[[2]]
+  
+  #Rename the colomn of baseline corrected matrix, 
+    #using the correct wavenumber sequence
+  colnames(bcSpec) <- tempWaveSeq[c(-1:-5, 
+                                    (-length(tempWaveSeq) +4): 
+                                      -length(tempWaveSeq))]
+}
+```
+
+2.  Z-score standardisation
+
+```{r z-score standardisation, include = FALSE}
+  #Z-score
+  bcNorSpec <- t(apply(bcSpec, 1, zstandMax))
+```
+
+3.  Output the correction and standardised spectra
+
+```{r output for corrected and standardised spectra, include = FALSE}
+  #Z-score
+  write.csv(cbind(rawSpecBatchInfo, bcNorSpec), 
+            file = file.path('..', 'Output_R', 'bcNorSpec.csv'))
+```
+
+### FTIR spectra processing
+
+```{r envionment setup for data visualisation, include = FALSE}
+#Load necessary packages--------------------------------------------------------
+{
+  #Find peaks and extract peak statistics
+  library(photobiology)
+  
+  #Paralell processing
+  library(doSNOW)
+  
+  #Plot
+  library(ggplot2)
+  library(patchwork)
+  
+  #Load arial font into R
+  library(showtext)
+  font_add(family = "arial", regular = file.path('..', 
+                                                 'Packages_R', 
+                                                 'Fonts',
+                                                 'arial.ttf'))
+  showtext_auto()
+  
+  #PCA
+  library(factoextra)
+  library(FactoMineR)
+  
+  #Palette
+  library(RColorBrewer)
+  
+  #Log-ratio transformation
+  library(compositions)
+  library(easyCODA)
+  library(robCompositions)
+  
+  #PLS
+  library(pls)
+ 
+  #Smoothing
+  library(prospectr)
+  
+  #Baseline correction
+  library(baseline) 
+  
+  #Data manipulation
+  library(reshape2)
+  
+  #String edit
+  library(stringr)
+}
+
+#Declare necessary functions----------------------------------------------------
+{
+  #Declare a function to calculate the derivatives of a given spectrum
+    #specVec - one single spectrum in a numeric vector
+    #degree - degree of derivative spectrum
+  derivaSpectrum <- function(specVec, degree) {
+    
+    tempvec <- specVec
+    
+    #Loop to calculate the derivative
+    loopI <- 1
+    while (loopI <= degree) {
+      
+      tempVecLast <- tempvec[-1]
+      
+      tempVecFirst <- tempvec[-length(tempvec)]
+      
+      tempvec <- (tempVecLast - tempVecFirst)
+      
+      loopI <- loopI + 1
+    }
+    
+    return(tempvec)
+  }
+  
+  #Benjamin A Bell github codes, for detecting and calculating peak area--------
+  {
+    # Load peak detection script
+    source("https://raw.githubusercontent.com/benbell95/peak-detection/main/r/peak_detection.r")
+    # Load peak area script
+    source("https://raw.githubusercontent.com/benbell95/peak-detection/main/r/peak_area.r")
+  }
+  
+  #Create a function to automatically identify all qualified peaks in given
+    #spectrum, and extract the peak height and peak area under each peaks
+    #tempSpec - one single spectra in numeric vector, with wavenumber information
+      #saved in elements' names
+    #tempMinPeakWid - one numeric value indicating the minimum peak width 
+      #to be identified, should be bigger than the wavenumber interval in the 
+      #spectrum input
+    #tempMinPeakWidMax - one numeric value indicating the maximum peak width 
+      #to be identified, should be bigger than tempMinPeakWid
+    #plot - Boolean value, indicating whether a plot on current spectrum labelled
+      #with identified peaks is output
+    #tempTol - one numeric value defining the minimum peak singal to be 
+      #identified
+  autoPeakDecQuan <- function(
+    tempSpec, 
+    tempMinPeakWid, 
+    tempMinPeakWidMax,
+    plot = FALSE, 
+    tempTol = 0
+    ) {
+    #Extract the spectra resolution
+    tempResu <- floor(tempMinPeakWid / 
+                        abs(as.numeric(names(tempSpec))[2] - as.numeric(names(tempSpec))[1])
+    )
+    
+    tempResu2 <- floor(tempMinPeakWidMax / 
+                        abs(as.numeric(names(tempSpec))[2] - as.numeric(names(tempSpec))[1])
+    )
+    
+    #Get peak positions (central position) for all peaks identified in current
+      #spectrum
+    tempPeakPos <- as.numeric(names(tempSpec))[
+      which(find_peaks(x = as.numeric(tempSpec),
+                       local.threshold = tempTol,
+                       span = tempResu,
+                       strict = FALSE)
+            )
+      ]
+    
+    #Find the peak ranges, acting on the peak position identified before
+    #Create a matrix storing the peak range information
+    tempPeakRange <- matrix(nrow = length(tempPeakPos),
+                            ncol = 5,
+                            dimnames = list(c(),
+                                            c('Peak_Pos',
+                                              'Peak_L',
+                                              'Peak_R',
+                                              'Peak_Height',
+                                              'Peak_Area')
+                            )
+    )
+    
+    #Fill in the matrix
+    tempPeakRange[ ,1] <- tempPeakPos
+    
+    #Loop to go through all identified peaks - left
+    for (loopI in 1:length(tempPeakPos)) {
+      
+      tempLeftSig <- tempSpec[which(as.numeric(names(tempSpec)) == 
+                                      tempPeakPos[loopI]
+      )
+      ]
+      
+      #Assign an indicator to terminate the loop for range searching
+      tempIndcator <- 1
+      
+      tempIndLeftIndcator <- 1
+      
+      while (tempIndcator == 1) {
+        
+        if ((which(as.numeric(names(tempSpec)) == 
+                  tempPeakPos[loopI]) - tempIndLeftIndcator < 1) | (tempIndLeftIndcator > tempResu2)) {
+          
+          #Assign the terminate indicator to 0, for preparing to stop the loop
+          tempIndcator <- 0
+          
+          break
+          
+        } else {
+          
+          if (tempLeftSig > tempSpec[which(as.numeric(names(tempSpec)) == 
+                                           tempPeakPos[loopI]
+          ) - tempIndLeftIndcator]) {
+            
+            tempLeftSig <- tempSpec[which(as.numeric(names(tempSpec)) == 
+                                            tempPeakPos[loopI]
+            ) - tempIndLeftIndcator]
+            
+            tempIndLeftIndcator <- tempIndLeftIndcator + 1
+            
+          }else{
+            
+            #Assign the terminate indicator to 0, for preparing to stop the loop
+            tempIndcator <- 0
+            
+            #This indicate that the search might approach its local peak
+              #boundary, then apply a boundary checking referring to the 
+              #boundary tolerance index defined by the spectra resolution
+            for (loopJ in 1:ceiling(tempResu / 4)) {
+              
+              if ((which(as.numeric(names(tempSpec)) == 
+                         tempPeakPos[loopI]
+              ) - tempIndLeftIndcator - loopJ) < 1) {
+                
+                tempRightSig <- tempSpec[which(as.numeric(names(tempSpec)) == 
+                                                 tempPeakPos[loopI]
+                ) + tempIndLeftIndcator - loopJ + 1]
+                
+                tempIndcator <- 0
+                
+                tempIndLeftIndcator <- tempIndLeftIndcator + loopJ
+                
+                break
+                
+              }else {
+                
+                #Search for the local minimum for left section of the current peak
+                if (tempLeftSig > tempSpec[which(as.numeric(names(tempSpec)) == 
+                                                 tempPeakPos[loopI]
+                ) - tempIndLeftIndcator - loopJ]) {
+                  
+                  tempLeftSig <- tempSpec[which(as.numeric(names(tempSpec)) == 
+                                                  tempPeakPos[loopI]
+                  ) - tempIndLeftIndcator - loopJ]
+                  
+                  #Reassign the terminate indicator to 1, to continue the loop
+                  tempIndcator <- 1
+                  
+                  tempIndLeftIndcator <- tempIndLeftIndcator + loopJ
+                  
+                  #Stop the loop for boundary detection
+                  break
+                }
+              }
+            }
+          }
+        }
+        #Record the peak range inot matrix
+        tempPeakRange[loopI, 2] <- names(tempSpec)[which(as.numeric(names(tempSpec)) == 
+                                                           tempPeakPos[loopI]) - 
+                                                     tempIndLeftIndcator + 1
+        ]
+      }
+    }
+    
+    #Loop to go through all identified peaks - right
+    for (loopI in 1:length(tempPeakPos)) {
+      
+      tempRightSig <- tempSpec[which(as.numeric(names(tempSpec)) == 
+                                       tempPeakPos[loopI]
+      )
+      ]
+      
+      #Assign an indicator to terminate the loop for range searching
+      tempIndcator <- 1
+      
+      tempIndRightIndcator <- 1
+      
+      while (tempIndcator == 1) {
+        
+        if (which(as.numeric(names(tempSpec)) == 
+                  tempPeakPos[loopI]) + tempIndRightIndcator > ncol(tempSpec) | (tempIndRightIndcator > tempResu2)) {
+          
+          #Assign the terminate indicator to 0, for preparing to stop the loop
+          tempIndcator <- 0
+          
+          break
+          
+        } else {
+          
+          if (tempRightSig > tempSpec[which(as.numeric(names(tempSpec)) == 
+                                            tempPeakPos[loopI]
+          ) + tempIndRightIndcator]) {
+            
+            tempRightSig <- tempSpec[which(as.numeric(names(tempSpec)) == 
+                                             tempPeakPos[loopI]
+            ) + tempIndRightIndcator]
+            
+            tempIndRightIndcator <- tempIndRightIndcator + 1
+            
+          }else{
+            
+            #Assign the terminate indicator to 0, for preparing to stop the loop
+            tempIndcator <- 0
+            
+            #This indicate that the search might approach its local peak
+              #boundary, then apply a boundary checking referring to the 
+              #boundary tolerance index defined by the spectra resolution
+            for (loopJ in 1:ceiling(tempResu / 4)) {
+              
+              if ((which(as.numeric(names(tempSpec)) == 
+                         tempPeakPos[loopI]
+              ) + tempIndRightIndcator + loopJ) > ncol(tempSpec)) {
+                
+                tempRightSig <- tempSpec[which(as.numeric(names(tempSpec)) == 
+                                                 tempPeakPos[loopI]
+                ) + tempIndRightIndcator + loopJ - 1]
+                
+                tempIndcator <- 0
+                
+                tempIndRightIndcator <- tempIndRightIndcator + loopJ
+                
+                break
+                
+              }else {
+                
+                #Search for the local minimum for left section of the current peak
+                if (tempRightSig > tempSpec[which(as.numeric(names(tempSpec)) == 
+                                                  tempPeakPos[loopI]
+                ) + tempIndRightIndcator + loopJ]) {
+                  
+                  tempRightSig <- tempSpec[which(as.numeric(names(tempSpec)) == 
+                                                   tempPeakPos[loopI]
+                  ) + tempIndRightIndcator + loopJ]
+                  
+                  #Reassign the terminate indicator to 1, to continue the loop
+                  tempIndcator <- 1
+                  
+                  tempIndRightIndcator <- tempIndRightIndcator + loopJ
+                  
+                  #Stop the loop for boundary detection
+                  break
+                }
+                
+              }
+            }
+          }
+        }
+      }
+      
+      #Record the peak range inot matrix
+      tempPeakRange[loopI, 3] <- names(tempSpec)[which(as.numeric(names(tempSpec)) == 
+                                                         tempPeakPos[loopI]) + 
+                                                   tempIndRightIndcator - 1
+      ]
+      
+      tempPeakRange[loopI, 4] <- as.numeric(tempSpec)[which(as.numeric(names(tempSpec)) ==
+                                                              tempPeakPos[loopI])
+      ]
+      
+      tempPeakRange[loopI, 5] <- unlist(spd_area_bands(t(rev(rbind(tempSpec, rep(0, length(tempSpec))))),
+                                                       bands = tempPeakRange[loopI, c(3,2)],
+                                                       refine = FALSE)$area)[1]
+    }
+    
+    
+    #Plot the current spectrum with information extracted, if corresponding
+    #variable is set as true
+    if (plot == TRUE) {
+      #View an example of specta read
+      plot(x = as.numeric(names(tempSpec)),
+           y = tempSpec,
+           type = 'l',
+           xlim = rev(range(as.numeric(names(tempSpec)
+           )
+           )
+           )
+      )
+      
+      #Add reference lines around peaks identified on the sample spectra
+      abline(v=tempPeakPos, col="blue")
+    }
+    
+    #Output the matrix
+    return(tempPeakRange)
+  }
+  
+  #Declare a function to combine all matrix in a list into one matrix
+    #tempList - a list to be combined, each element in this list should be a 
+      #matrix, all matrix in different elements should have the same column 
+      #title, this list must have length bigger than 1
+  combineList <- function(tempList) {
+    
+    #Create a temporary matrix, and put the fisrt list element into the matrix
+    tempMat <- tempList[[1]]
+    
+    #Loop to combind all other list elements into the matrix above
+    for (loopI in 2:length(tempList)) {
+      tempMat <- rbind(tempMat, tempList[[loopI]])
+    }
+    
+    #Output the combined matrix
+    return(tempMat)
+  }
+  
+  #Declare a function to combine some of rows and columns in all matrix in a 
+    #list into one matrix
+    #tempList - a list to be combined, each element in this list should be a 
+      #matrix, all matrix in different elements should have the same column 
+      #title, this list must have length bigger than 1
+    #indexRow - a numeric vector indicating the indexes of all rows in each
+      #matrix which will be combined, should have length bigger than 1
+    #indexCol - optional, a numeric vector indicating the indexes of all columns
+      #in each matrix which will be combined. Will be set as all column indexes
+      #in each matrix if not specified
+  combineListEle <- function(tempList, indexRow, indexCol) {
+    
+    #Check whether variable indexCol is input. Set it to all column indexes in  
+      #single matrix if not specified
+    if (exists('indexcol')) {
+      indexcol <- indexCol
+    }else{
+      indexcol <- 1:ncol(tempList[[1]])
+    }
+    
+    #Create a temporary matrix and copy the first matrix element in the list 
+      #into it
+    tempMat <- tempList[[1]][indexRow, indexCol]
+    
+    #Loop to combine all specified rows and columns in each matrix element in 
+      #the list together
+    for (loopI in 2:length(tempList)) {
+      tempMat <- rbind(tempMat, tempList[[loopI]][indexRow, indexCol])
+    }
+    
+    #Output the combined matrix
+    return(tempMat)
+  }
+  
+  #Create a function to find peaks with  similar positions among different peak
+    #information matrix, and modified all original peak information matrix into
+    #another one that deletes the singular peak positions (the peaks that is 
+    #not identified in all of other spectra)
+    #peakInfoList - the original list of peak information, each element in this
+      #list is a matrix containing all peak statistics identified from function
+      #'autoPeakDecQuan', should have length bigger than 1
+    #tempPeakPos - numeric vector, indicating the peak position to be remained,
+      #should have length bigger than 1
+    #temppeakTol -  numeric vector, indicating the tolerance (drift 
+      #distance between the theoretical peak position specified in variable
+      #'tempPeakPos', peaks farer than this distance will not be considered as
+      #the same peak and will be deleted at last. Should have the same length as
+      #variable 'tempPeakPos'
+  autoPeakResam <- function(peakInfoList, tempPeakPos, temppeakTol) {
+    
+    #Combine the input peak information list into one matrix
+    tempMat <- combineList(peakInfoList)
+    
+    #Create a matrix to resample from the peak information matrix
+    tempPeakInfoMat <- matrix(nrow = length(tempPeakPos),
+                              ncol = 2 + ncol(tempMat),
+                              dimnames = list(c(),
+                                              c('Pre_Peak_Pos',
+                                                'Peak_Pos_Tol',
+                                                colnames(tempMat)
+                                              )
+                              )
+    )
+    
+    #Fill in the matrix
+    tempPeakInfoMat[, 1] <- tempPeakPos
+    tempPeakInfoMat[, 2] <- temppeakTol
+    
+    #Create a list to store the resampled peak information
+    tempList <- vector('list', length = length(peakInfoList))
+    
+    #Loop around all spectra
+    for (loopI in 1:length(tempList)) {
+      
+      tempList[[loopI]] <- tempPeakInfoMat
+      
+      #Loop around possible peak positions to find the nearest peak identified in the
+      #Spectra
+      for (loopJ in 1:nrow(tempPeakInfoMat)) {
+        
+        #Check if there is at least one peak matched with any of peaks listed in
+          #'tempPeakPos'
+        if (length(which(
+          (abs(
+            as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+          ) == 
+          min(
+            abs(
+              as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+            ))) & (abs(
+              as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+            ) <= temppeakTol[loopJ]
+            ))) >= 1){
+          
+          #Check if there is more than one peak matched with the same peak 
+            #listed in 'tempPeakPos'
+          if (length(which(
+            (abs(
+              as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+            ) == 
+            min(
+              abs(
+                as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+              ))) & (abs(
+                as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+              ) <= temppeakTol[loopJ]
+              ))) > 1) {
+            
+            #if there is more than one peaks matching the same peak in 
+              #'tempPeakPos'
+            tempList[[loopI]][loopJ, 3:ncol(tempList[[loopI]])] <-
+              apply(peakInfoSpec[[loopI]][which(
+                (
+                  abs(
+                    as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+                  ) == 
+                    min(
+                      abs(
+                        as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+                      )
+                    )
+                ) & (
+                  abs(
+                    as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+                  ) <= temppeakTol[loopJ]
+                )
+              ), ], 2, mean)
+          }else {
+            
+            #If there is only one peak matching a peak in 'tempPeakPos'
+            tempList[[loopI]][loopJ, 3:ncol(tempList[[loopI]])] <-
+              peakInfoSpec[[loopI]][which(
+                (
+                  abs(
+                    as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+                  ) == 
+                    min(
+                      abs(
+                        as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+                      )
+                    )
+                ) & (
+                  abs(
+                    as.numeric(peakInfoSpec[[loopI]][, 1]) - tempPeakPos[loopJ]
+                  ) <= temppeakTol[loopJ]
+                )
+              ), ]
+          }
+        }
+      }
+      
+      #Adjust the value format into numeric
+      tempList[[loopI]] <- apply(tempList[[loopI]], c(1,2), as.numeric)
+    }
+    
+    #Output the modified list that deletes peaks that do not show in all spectra
+    return(tempList)
+  }
+  
+  #Check NAs in a vector, return true if the correconding element is NA
+    #tempVec - numeric vector to be treated for deleting NAs, should have length
+      #bigger than 1
+  cleanNA <- function(tempVec) {
+    
+    for (loopI in 1:length(tempVec)) {
+      
+      if (is.na(tempVec[loopI])) {
+        
+        return(FALSE)
+        
+        break
+        
+      }else if(loopI == length(tempVec)) {
+        
+        return(TRUE)
+        
+      }
+    }
+  }
+  
+  #Detect the symbol of given value, and output 1 or -1 accordingly
+    #tempVec - single numeric value to be treated
+  symbolDec <- function(tempVec){
+    
+    tempVec2 <- tempVec
+    
+    for (loopI in 1:length(tempVec)) {
+      if (tempVec[loopI] <= 0) {
+        
+        tempVec2[loopI] <- -1
+        
+      }else{
+        
+        tempVec2[loopI] <- 1
+        
+      }
+    }
+    
+    return(tempVec2)
+    
+  }
+  
+  #Function for producing a text string with regression function and coefficients
+  lm_eqn2 <- function(compI){
+    m <- lm(modelHeight$model$calibrated ~ modelHeight$fitted.values[,,compI]);
+    eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2,
+                     list(a = format(unname(coef(m)[1]), digits = 2),
+                          b = format(unname(coef(m)[2]), digits = 2),
+                          r2 = format(summary(m)$r.squared, digits = 3)))
+    as.character(as.expression(eq));
+  }
+  
+  #Create a function to output significance markers
+    #tempSig - single numeric value
+    #gradient - numeric vector, significance criteria judging the significant 
+      #markers for different levels, should be at length of 3, and in decreasing
+      #order
+  sigMarkter <- function(tempSig, gradient) {
+    
+    #Significant level 1, marked by *
+    if ((as.numeric(tempSig) < gradient[1]) & 
+        (as.numeric(tempSig) > gradient[2])) {
+      
+      return('*')
+      
+    #Significance level 2, marked by **  
+    } else if ((as.numeric(tempSig) < gradient[2]) & 
+               (as.numeric(tempSig) > gradient[3])) {
+      
+      return('**')
+    
+    #Significance level 3, marked by ***
+    } else if (as.numeric(tempSig) < gradient[3]) {
+      
+      return('***')
+      
+    } else {
+      
+    #Not significant, marked by nothing
+      return('')
+      
+    }
+    
+  }
+} 
+```
+
+Read the standardised spectra and identify all peaks in each spectrum. I
+use some codes (integraated in the function of autoPeakDecQuan)
+following these routes: 1. Identify all local maximum in a spectrum,
+which could potentially (but not exactly) be a peak (can be named
+'candidate peak'), referring to the function of 'find_peaks' in
+'photobiology' package 2. For each spectrum, and acting on the
+(candidate) peaks' positions , the codes search for boundary for each
+candidate peak point by point, starting from the exactly signal local
+maximum (position of the candidate peak), and moving to both left and
+right direction relative to the local maximum. I define the 'boundary'
+of a peak as 'the point where the decreasing or increasing trend between
+adjacent two points disappears consecutively for given times (this is
+set as 3 points here) 3. Basing on the peak boundaries found in the last
+step, the codes calculates the peak statistics (peak height, peak area,
+peak width), and will exclude peaks with width wider or narrower than
+the expected value (both can be set though corresponding variables of
+the function). For the qualified peaks passing the width examination, a
+matrix containing thier statistics will be finally output.
+
+```{r FTIR spectra, include = FALSE}
+#Read FTIR data and peak signal extration---------------------------------------
+{
+  #Read raw spectra (smoothed and baseline corrected, z-score standardisation)
+  {
+    #Read standardised FTIR spectra
+    bcSpec <- read.csv(file.path('..', 'Output_R', 'bcNorSpec.csv'),
+                       row.names = 1,
+                       header = TRUE)
+    
+    #Remove spectra of roof samples
+    bcSpec <- bcSpec[which(bcSpec[, 3] != 'ROOF'),]
+    
+    #Rename the column names for the smoothed spectra
+    colnames(bcSpec)[11:ncol(bcSpec)] <- seq(3976, 620, by = -4)
+    
+    #Convert spectra into numeric values
+    bcSpec[, 11:ncol(bcSpec)] <- apply(bcSpec[, 11:ncol(bcSpec)], 
+                                       c(1,2),
+                                       as.numeric)
+  }
+  
+  #Extract peak information (position and range) from raw spectra
+  {
+    #Create a list to store all peak information for all spectra
+    peakInfoSpec <- vector('list', nrow(bcSpec))
+    
+    #Setup cores for parallel processing
+    cl <- makeCluster(8, type="SOCK")
+    
+    #Regist multiple-core setup
+    registerDoSNOW(cl)
+    
+    #Apply peak identification function on all spectra, and output the peak
+      #information matrix into a list
+    peakInfoSpec <- foreach(loopI = 1:length(peakInfoSpec),
+                            .packages = c('photobiology')) %dopar% 
+      {
+        autoPeakDecQuan(bcSpec[loopI, -1:-10], 20, 100, FALSE
+        )
+      }
+    
+    #Quite the setup of multiple-core processing
+    stopCluster(cl)
+    
+    #Clean up some of variables
+    rm(cl)
+    
+    #Assign possible peak positions together with tolerance range for peak drifts
+    peakPos <- c(3324, 2924, 2856, 1740, 
+                 1636, 1556, 1516, 1440, 1376,
+                 1324, 1268, 1036, 996, 832)
+    peakTol <- c(200, rep(50, 13))
+    
+    #Rearrange the peak information into an uniform sequence
+    peakInfoSpecUni <- autoPeakResam(peakInfoSpec, peakPos, peakTol)
+  }
+  
+  #Rearrange all peak information into one matrix
+  {
+    #Create a matirx for all peak information - Height
+    pcaMatHeight <- matrix(nrow = nrow(bcSpec),
+                           ncol = 10 + length(peakPos),
+                           dimnames = list(c(),
+                                           c(colnames(bcSpec)[1:10], 
+                                             peakPos)))
+    
+    #Create a matirx for all peak information - Area
+    pcaMatArea <- matrix(nrow = nrow(bcSpec),
+                         ncol = 10 + length(peakPos),
+                         dimnames = list(c(),
+                                         c(colnames(bcSpec)[1:10], 
+                                           peakPos)))
+    
+    #Fill the batch information into matrix for peak height and area
+    pcaMatHeight[, 1:10] <- as.matrix(bcSpec[, 1:10])
+    pcaMatArea[, 1:10] <- as.matrix(bcSpec[, 1:10])
+    
+    #Loop to fill in the matrix with individual spectrum on corresponding row
+    for (loopI in 1:nrow(bcSpec)) {
+      
+      pcaMatHeight[loopI, c(11:ncol(pcaMatHeight))] <- peakInfoSpecUni[[loopI]][, 6]
+      
+      pcaMatArea[loopI, 11:ncol(pcaMatArea)] <- peakInfoSpecUni[[loopI]][, 7]
+      
+    }
+  }
+}
+```
+
+### GCMS signal processing
+
+```{r GCMS signals, and matching them with FTIR spectra, include = FALSE}
+#Read GC-MS signals and combine them with FTIR peak signals---------------------
+{
+  #Read GC-MS data
+  {
+    #GC-MS data on cuttings and pot cultivars
+    GCDataRawCut <- as.matrix(read.csv(
+      file.path('..', 'Data_R', '04_11_2025_gc_cutting_data_2025.csv'),
+      header = TRUE,
+      row.names = 1))
+    GCDataRawCul <- as.matrix(read.csv(
+      file.path('..', 'Data_R', '01_07_2025_gc_cultivar_data_2025.csv'),
+      header = TRUE,
+      row.names = 1))
+    
+    #Combine these two raw datasets, with batch information
+    GCData <- rbind(GCDataRawCut[, c(8, 10:14)],
+                    cbind(GCDataRawCul[, c(8, 10:12)], 
+                          sampling_number = NA, 
+                          GCDataRawCul[, 13])
+    )
+    
+    #Exclude the last batch (u), as an unexpected crash happened before this
+      #batch, making reseult from this batch abnormal
+    GCData <- GCData[-which(GCData[, 6] == 'u'),]
+    
+    #Loop to calculate the mean values for each sample
+    uniqueBatchInfo <- unique(GCData[, 2:5])
+    
+    #Create a matrix to fill in the mean GC-MS signals
+    GCDataMean <- matrix(nrow = nrow(uniqueBatchInfo),
+                         ncol = ncol(uniqueBatchInfo) + 2,
+                         dimnames = list(c(),
+                                         c('calibrated',
+                                           'sd',
+                                           colnames(uniqueBatchInfo)
+                                         )
+                         )
+    )
+    
+    #Add batch number to the GCMS data matrix
+    GCDataMean[, 3:ncol(GCDataMean)] <- uniqueBatchInfo
+    
+    #Loop to calculate the mean signals of GCMS duplicates
+    for (loopI in 1:nrow(GCDataMean)) {
+      
+      #Check wheter current sample is cutting or pot cultivar 
+      if (is.na(GCDataMean[loopI, 6])) {
+        
+        #Mean and sd for pot cultivar
+        GCDataMean[loopI, 1] <- mean(as.numeric(
+          GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                         (GCData[, 3] == GCDataMean[loopI, 4]) &
+                         (GCData[, 4] == GCDataMean[loopI, 5]) 
+        )
+        , 1])
+        )
+        GCDataMean[loopI, 2] <- sd(as.numeric(
+          GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                         (GCData[, 3] == GCDataMean[loopI, 4]) &
+                         (GCData[, 4] == GCDataMean[loopI, 5])
+        )
+        , 1])
+        )
+        
+      }else {
+        
+        #Mean and sd for cutting
+        GCDataMean[loopI, 1] <- mean(as.numeric(
+          GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                         (GCData[, 3] == GCDataMean[loopI, 4]) &
+                         (GCData[, 4] == GCDataMean[loopI, 5]) &
+                         (GCData[, 5] == GCDataMean[loopI, 6])
+        )
+        , 1])
+        )
+        GCDataMean[loopI, 2] <- sd(as.numeric(
+          GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                         (GCData[, 3] == GCDataMean[loopI, 4]) &
+                         (GCData[, 4] == GCDataMean[loopI, 5]) &
+                         (GCData[, 5] == GCDataMean[loopI, 6])
+        )
+        , 1])
+        )
+        
+      }
+    }
+    
+    #Transfer the matrix back to data frame, and transfer values to number if
+      #necessary
+    GCDataMean <- as.data.frame(GCDataMean)
+    GCDataMean[, 1] <- as.numeric(GCDataMean[, 1])
+  }
+  
+  #Combine GC-MS data with FTIR data
+  {
+    #Create a vector to stroe the index for batch information matching
+    tempInd <- vector('numeric', length = nrow(bcSpec))
+    
+    #Loop to match the batch information between GC-MS and FTIR datasets
+    for (loopI in 1:nrow(bcSpec)) {
+      
+      #Check whether current sample is pot cultivar
+      if (bcSpec[loopI, 5] == 'cul') {
+        
+        #Check whether current FTIR spectrum has any GCMS signal
+        if (any((GCDataMean[, 3] == bcSpec[loopI, 6]) &
+                (GCDataMean[, 4] == bcSpec[loopI, 7]) &
+                (GCDataMean[, 5] == bcSpec[loopI, 8]) &
+                (is.na(GCDataMean[, 6]))
+        )
+        ) {
+          
+          #Record the FTIR matrix row index for current GCMS signal
+          tempInd[loopI] <- which((GCDataMean[, 3] == bcSpec[loopI, 6]) &
+                                    (GCDataMean[, 4] == bcSpec[loopI, 7]) &
+                                    (GCDataMean[, 5] == bcSpec[loopI, 8]) &
+                                    (is.na(GCDataMean[, 6])))
+          
+        }else {
+          
+          #Record nothing if there is no match between current FTIR specrum and
+            #any GCMS signal
+          tempInd[loopI] <- NA
+          
+        }
+        
+      #Check whether current sample is cutting
+      } else if (bcSpec[loopI, 5] == 'cut') {
+        
+        #Check whether current FTIR spectrum has any GCMS signal
+        if (any((GCDataMean[, 3] == bcSpec[loopI, 6]) &
+                (GCDataMean[, 4] == bcSpec[loopI, 7]) &
+                (GCDataMean[, 5] == bcSpec[loopI, 8]) &
+                (GCDataMean[, 6] == bcSpec[loopI, 9])
+        )
+        ) {
+          
+          #Record the FTIR matrix row index for current GCMS signal
+          tempInd[loopI] <- which((GCDataMean[, 3] == bcSpec[loopI, 6]) &
+                                    (GCDataMean[, 4] == bcSpec[loopI, 7]) &
+                                    (GCDataMean[, 5] == bcSpec[loopI, 8]) &
+                                    (GCDataMean[, 6] == bcSpec[loopI, 9]))
+          
+        }else {
+          
+          #Record nothing if there is no match between current FTIR spectrum and
+            #any GCMS signal
+          tempInd[loopI] <- NA
+          
+        }
+        
+      } else {
+        
+        #Record nothing if there is no match between current FTIR spectrum and
+          #any GCMS signal
+        tempInd[loopI] <- NA
+        
+      }
+    }
+    
+    #Attach GCMS signals to  peak statistics (height or area)
+    pcaMatHeight <- cbind(pcaMatHeight,
+                          GCDataMean[tempInd, c(1,2)])
+    pcaMatArea <- cbind(pcaMatArea,
+                        GCDataMean[tempInd, c(1,2)])
+    
+    rm(loopI,
+       tempInd)
+  }
+}
+```
+
+### PLS analysis 
+PLS analysis is based on identifed and checked peaks, where 14 peaks are input as variables in PLS model. Some peaks were not used for PLS analysis as they are not identifed in every spectrum.
+
+```{r PLS analysis, include = FALSE}
+#PLS analysis-------------------------------------------------------------------
+{
+  #Height
+  {
+    #Clean up the matrix to exclude NA values in GC-MS data
+    pcaMatHeight <- pcaMatHeight[which(!is.na(pcaMatHeight[, ncol(pcaMatHeight) - 1])), ]
+    pcaMatHeight <- pcaMatHeight[which(apply(pcaMatHeight[, -1:-10], 1, cleanNA)),]
+
+    #PLS model
+    modelHeight <- plsr(calibrated ~ ., 
+                        data = as.data.frame(apply(pcaMatHeight[,c(-1:-10, -ncol(pcaMatHeight))],
+                                                   c(1,2),
+                                                   as.numeric)), 
+                        scale=FALSE, validation="CV")
+    
+    #Investigate important results
+    validationplot(modelHeight)
+    validationplot(modelHeight, val.type="R2")
+    
+    #Setup the number of components to be analysed
+    numCompsHeight <- selectNcomp(modelHeight, method = "randomization", plot = TRUE)
+    
+    #Plot PLS predictions with GC-MS
+    plsPlotHeight <- ggplot() + 
+      geom_point(aes(x = modelHeight$fitted.values[,,numCompsHeight],
+                     y = modelHeight$model$calibrated)) + 
+      geom_smooth(aes(x = modelHeight$fitted.values[,,numCompsHeight],
+                      y = modelHeight$model$calibrated),
+                  method = "lm") +
+      geom_text(
+        aes(x = 0.35, y = 0.7,
+            label = lm_eqn2(numCompsHeight)), parse = TRUE) +
+      labs(x = 'PLS fitted values (peak height)',
+           y = 'GC-MS (ng/150gr)') + 
+      theme_classic() + 
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #Plot correlation coefficient under the selected number of components
+    modelHeightCof <- ggplot() +
+      geom_bar(aes(x = peakPos, y = modelHeight$coefficients[, , numCompsHeight]),
+               stat = 'identity') +
+      geom_hline(yintercept = 0) +
+      geom_text(
+        aes(x = peakPos, y = modelHeight$coefficients[, ,numCompsHeight] + 
+              min(abs(modelHeight$coefficients[, ,numCompsHeight])) *0.4 * symbolDec(modelHeight$coefficients[, ,numCompsHeight]),
+            label = peakPos), parse = TRUE, 
+        check_overlap = T) +
+      scale_x_reverse(limit = c(3500, 500),
+                      breaks = seq(3500, 500, by = -500)) +
+      labs(x = 'Wavenumber', y = paste('Variable coefficients ',
+                                       numCompsHeight, ' components', sep = '', collapse = NULL)) +
+      theme_classic() + 
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #Plot variable loadings under the first components
+    modelHeightLoa <- ggplot() +
+      geom_bar(aes(x = peakPos, y = modelHeight$loadings[, 1]),
+               stat = 'identity') +
+      geom_hline(yintercept = 0) +
+      geom_text(
+        aes(x = peakPos, y = modelHeight$loadings[, 1] + 
+              min(abs(modelHeight$loadings[, 1])) *0.4 * symbolDec(modelHeight$loadings[, 1]),
+            label = peakPos), parse = TRUE, 
+        check_overlap = T) +
+      scale_x_reverse(limit = c(3500, 500),
+                      breaks = seq(3500, 500, by = -500)) +
+      labs(x = 'Wavenumber', y = paste('Variable loadings ',
+                                       1, sep = '', collapse = NULL)) +
+      theme_classic() + 
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #Calculate variance explained by different components
+    varCompMat <- matrix(nrow = numCompsHeight,
+                         ncol = 2,
+                         dimnames = list(c(),
+                                         c('Accu',
+                                           'Partial')))
+    varCompMat[, 1] <- modelHeight[[12]][1:numCompsHeight]
+    for (loopI in 1:nrow(varCompMat)) {
+      varCompMat[loopI, 2] <- sum(modelHeight[[12]][1:loopI])
+    }
+    
+    #Plot variance explained by different components
+    modelHeightVar <- ggplot() +
+      geom_bar(aes(x = 1:numCompsHeight, y = varCompMat[, 2] / sum(modelHeight[[12]])),
+               fill = 'red',
+               stat = 'identity') +
+      geom_bar(aes(x = 1:numCompsHeight, y = varCompMat[, 2] / sum(modelHeight[[12]] )- 
+                     varCompMat[, 1] / sum(modelHeight[[12]])),
+               fill = 'grey',
+               stat = 'identity') +
+      labs(x = 'Component', y = 'Variance explained') +
+      scale_x_continuous(breaks = seq(1, numCompsHeight, by = 1)) +
+      theme_classic() + 
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #Plot PLS residuals against GCMS signals under the selected number of
+      #components
+    plsPlotHeightResi <- ggplot() + 
+      geom_point(aes(x = modelHeight$fitted.values[,,numCompsHeight],
+                     y = modelHeight$residuals[,,numCompsHeight])) + 
+      geom_hline(yintercept = 0) +
+      labs(x = 'PLS fitted values (peak height)',
+           y = 'Residuals') + 
+      theme_classic() + 
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #Remove unused variables
+    rm(loopI)
+  }
+  
+  #Output PLS results
+  {
+    #Combine plot and output PLS model
+    pdf(file = file.path('..', 'Figures_R', 'PLS_Nor.pdf'),
+        width = 8,
+        height = 12)
+    
+    (plsPlotHeight | modelHeightVar) /
+      (modelHeightCof | modelHeightLoa) /
+      (plsPlotHeightResi | plot_spacer() )
+    
+    dev.off()
+    
+    #Combine the PLS predicted values to the FTIR peak statistics
+    tempMat <- cbind(pcaMatHeight, modelHeight$fitted.values[,, numCompsHeight])
+    
+    #Output PLS predicted values and FTIR statistics together
+    write.csv(tempMat, file = file.path('..', 'Output_R', 'PLS_Nor.csv'))
+    
+    #Remove unused variables
+    rm(tempMat)
+  }
+}
+```
+
+### Figures on PLS analysis The printed PDF version is available in
+'Figures_R' folder, the dataset used for PLS model (and the PLS fitted
+values) is available in 'Output_R' folder
+
+```{r PLS figure, echo = FALSE}
+ (plsPlotHeight | modelHeightVar) /
+      (modelHeightCof | modelHeightLoa) /
+      (plsPlotHeightResi | plot_spacer() )
+```
+
+### Malformation analysis The plots on malformation rates, GCMS signals
+between UV/Control groups, and FTIR PLS fitted values between UV/Control
+groups are available in 'Figures_R' folder
+
+```{r malformation, include = FALSE}
+#Read malformation data and combine them with FTIR/GCMS data--------------------
+{
+  #Read malformation data
+  {
+    #Read the cutting branch data, and replace all na with 0
+    cuttingsRaw <- read.csv(file = 
+                              file.path('..', 
+                                        'Data_R', 
+                                        'Malformations_Cuttings.csv'),
+                            row.names = 1)
+    
+    #Replace all NAs with 0
+    cuttingsRaw[is.na(cuttingsRaw)] <- 0
+    
+    #Extract the batch information
+    batchInfoTemp <- strsplit(x = cuttingsRaw[,1], split = '_')
+    cuttingsBatchInfo <- cbind(rep('Cuttings', length(batchInfoTemp)),
+                               rep('2025', length(batchInfoTemp)),
+                               matrix(unlist(batchInfoTemp), ncol = 4, byrow = TRUE))
+    colnames(cuttingsBatchInfo) <- c('Sample', 'Year', 'Frame', 'Treatment',
+                                     'Plant', 'Duplicate')
+    
+    #Delete unused variables
+    rm(batchInfoTemp)
+    
+    #Read the cultivar branch data, and replace all na with 0
+    cultivarsRaw <- read.csv(file = 
+                               file.path('..', 
+                                         'Data_R', 
+                                         'Malformations_Cultivars.csv'),
+                             row.names = 1)
+    
+    #Replace all NAs with 0
+    cultivarsRaw[is.na(cultivarsRaw)] <- 0
+    
+    #Extract the batch information
+    batchInfoTemp <- strsplit(x = cultivarsRaw[,1], split = '_')
+    cultivarsBatchInfo <- cbind(rep('Cultivars', length(batchInfoTemp)),
+                                matrix(unlist(batchInfoTemp), ncol = 4, byrow = TRUE))
+    colnames(cultivarsBatchInfo) <- c('Sample', 'Year', 'Frame', 'Treatment',
+                                      'Plant')
+    
+    #Delete unused variables
+    rm(batchInfoTemp)
+    
+    #Combine counting results in duplicated samples, by summing them up
+    tempVec <- unique(cultivarsRaw[, 1])
+    
+    #Matrix for all malformation data
+    tempMat <- matrix(nrow = length(tempVec),
+                      ncol = ncol(cultivarsRaw),
+                      dimnames = list(c(),
+                                      colnames(cultivarsRaw)))
+    
+    #Matrix for all batch information on malformation data
+    tempMat2 <- matrix(nrow = length(tempVec),
+                       ncol = ncol(cultivarsBatchInfo),
+                       dimnames = list(c(),
+                                       colnames(cultivarsBatchInfo)))
+    
+    #Fill sample label into matrix
+    tempMat[, 1] <- tempVec
+    
+    #Loop to add duplicates together
+    for (loopI in 1:nrow(tempMat)) {
+      
+      #Check  if there are duplicates in current sample
+      if (length(which(cultivarsRaw[, 1] == tempMat[loopI, 1])) > 1) {
+        
+        #Sum up all counting results among duplicates
+        tempMat[loopI, 2:ncol(tempMat)] <- apply(cultivarsRaw[
+          which(cultivarsRaw[, 1] == tempMat[loopI, 1]), 
+          2:ncol(tempMat)
+        ], 2, sum)
+        
+      }else{
+        
+        #Transfer couting results into matrix
+        tempMat[loopI, 2:ncol(tempMat)] <- cultivarsRaw[
+          which(cultivarsRaw[, 1] == tempMat[loopI, 1]), 2:ncol(tempMat)
+        ]
+        
+      }
+      
+      #Record the corresponding batch information
+      tempMat2[loopI,] <- cultivarsBatchInfo[which(cultivarsRaw[, 1] == tempMat[loopI, 1])[1],]
+      
+    }
+    
+    #Combine batch information with counting results
+    cultivarsCom <- cbind(tempMat2, tempMat[, -1])
+    
+    rm(loopI,
+       tempMat,
+       tempMat2,
+       tempVec)
+  }
+  
+  #Combine malformation data with FTIR and GC-MS data
+  {
+    #Add batch information to FTIR data
+    pcaMatFTIR <- cbind(pcaMatHeight[, c(1:10)],
+                        modelHeight$fitted.values[,,numCompsHeight],
+                        pcaMatHeight[, c(25:26)])
+    
+    colnames(pcaMatFTIR)[-1:-10] <- c('PLS', 'GCMS', 'GCMS_SD')
+    
+    #Vector for recording row index in FTIR spectra matrix
+    tempInd <- vector(length = nrow(pcaMatFTIR))
+    
+    #Combine batch information of cuttings and pot cultivars together
+    tempMat <- rbind(cultivarsCom[,1:6],
+                     cuttingsBatchInfo)
+    
+    #Add malformation data to FTIR data
+    for (loopI in 1:nrow(pcaMatFTIR)) {
+      
+      #Check and skip the roof samples
+      if (pcaMatFTIR[loopI, 3] == 'ROOF') {
+        
+        tempInd[loopI] <- NA
+        
+      }else{
+        
+        #For all pot cultivars
+        if (pcaMatFTIR[loopI, 5] == 'cul') {
+          
+          if (any((tempMat[, 3] == bcSpec[loopI, 6]) &
+                  (tempMat[, 4] == bcSpec[loopI, 7]) &
+                  (tempMat[, 5] == bcSpec[loopI, 8]) &
+                  (!is.na(as.numeric(tempMat[, 6])))
+                  )
+          ) {
+            
+            #Record the row index for FTIR spectra matrix
+            tempInd[loopI] <- which(
+              (tempMat[, 3] == pcaMatFTIR[loopI, 6]) &
+                (tempMat[, 4] == pcaMatFTIR[loopI, 7]) &
+                (tempMat[, 5] == 
+                   as.character(as.numeric(pcaMatFTIR[loopI, 8]))) &
+                (!is.na(as.numeric(tempMat[, 6])))
+              )
+            
+          }else {
+            
+            tempInd[loopI] <- NA
+            
+          }
+        
+        #For all cuttings
+        } else if (pcaMatFTIR[loopI, 5] == 'cut') {
+          
+          #Check if current FTIR sample has malformation counting results
+          if (any((tempMat[, 3] == pcaMatFTIR[loopI, 6]) &
+                  (tempMat[, 4] == pcaMatFTIR[loopI, 7]) &
+                  (tempMat[, 5] == as.character(as.numeric(pcaMatFTIR[loopI, 8]))) &
+                  (tempMat[, 6] == pcaMatFTIR[loopI, 9])
+          )
+          ) {
+            
+            #Record the row index for FTIR spectra matrix
+            tempInd[loopI] <- which(
+              (tempMat[, 3] == pcaMatFTIR[loopI, 6]) &
+                (tempMat[, 4] == pcaMatFTIR[loopI, 7]) &
+                (tempMat[, 5] == 
+                   as.character(as.numeric(pcaMatFTIR[loopI, 8]))) &
+                (tempMat[, 6] == pcaMatFTIR[loopI, 9]))
+            
+          }else {
+            
+            tempInd[loopI] <- NA
+            
+          }
+          
+        } else {
+          
+          tempInd[loopI] <- NA
+          
+        }
+      }
+    }
+    
+    #Combine all counting results together from both cuttings and pot cultivars
+    tempMat <- rbind(cultivarsCom[, -1:-5],
+                     as.matrix(cuttingsRaw[, -1]))
+    
+    #Add malformation counting results to FTIR and GCMS matrix
+    pcaMatFTIRGCMal <- cbind(pcaMatFTIR, tempMat[tempInd, c(1, 14)])
+    
+    #Adjest value type to numeric
+    pcaMatFTIRGCMal[, 11:15] <- apply(pcaMatFTIRGCMal[, 11:15], c(1,2), as.numeric)
+    
+    #Calculate the malformation ratio in each sample, and add them to the whole
+      #matrix
+    pcaMatFTIRGCMalFull <- cbind(pcaMatFTIRGCMal, 
+                                 Mal_Ratio = 
+                                   (pcaMatFTIRGCMal[,ncol(pcaMatFTIRGCMal)] - pcaMatFTIRGCMal[,ncol(pcaMatFTIRGCMal) - 1]) / 
+                                   pcaMatFTIRGCMal[,ncol(pcaMatFTIRGCMal)])
+    
+    #Remove samples that do not have malformation counting results
+    pcaMatFTIRGCMalFull <- pcaMatFTIRGCMalFull[which(!is.na(pcaMatFTIRGCMalFull[, 6])),]
+    
+    #Calculate the mean and sd of FTIR duplicates
+    #Get unique batch information
+    tempMat <- unique(pcaMatFTIRGCMalFull[, 1:8])
+    
+    #Matrix for recording mean and sd of FTIR duplicates
+    tempMat2 <- matrix(nrow = nrow(tempMat),
+                       ncol = ncol(pcaMatFTIRGCMalFull) - 1,
+                       dimnames = list(c(),
+                                       c(colnames(pcaMatFTIRGCMalFull)[-9:-10], 
+                                         paste(colnames(pcaMatFTIRGCMalFull)[11], '_SD')
+                                       )
+                       )
+    )
+    
+    tempMat2[,1:8] <- as.matrix(tempMat)
+    
+    #Calculate the mean FTIR signals
+    for (loopI in 1:nrow(tempMat2)) {
+      
+      #Row indexes for all duplicates of current sample
+      tempVec <- which((pcaMatFTIRGCMalFull[, 5] == tempMat2[loopI, 5]) &
+                         (pcaMatFTIRGCMalFull[, 6] == tempMat2[loopI, 6]) &
+                         (pcaMatFTIRGCMalFull[, 7] == tempMat2[loopI, 7]) &
+                         (as.numeric(pcaMatFTIRGCMalFull[, 8]) == as.numeric(tempMat2[loopI, 8]))
+      )
+      
+      #Check whetehr there are duplicates
+      if (length(tempVec) > 1) {
+        
+        #Calculate mean and sd of duplicates
+        tempMat2[loopI, 9:14] <- apply(pcaMatFTIRGCMalFull[tempVec, 11:16],
+                                       2,
+                                       mean)
+        tempMat2[loopI, 15] <- sd(pcaMatFTIRGCMalFull[tempVec, 11])
+      }else {
+        
+        #Copy the signals to corresponding position
+        tempMat2[loopI, 9:14] <- as.numeric(pcaMatFTIRGCMalFull[tempVec, 11:16])
+        #Sd is assigned to 0 for no-duplicate sample
+        tempMat2[loopI, 15] <- 0
+        
+      }
+    }
+    
+    #Transfer the combined matrix to named matrix
+    pcaMatFTIRGCMalFullMean <- tempMat2
+    pcaMatFTIRGCMalFullMean <- as.data.frame(pcaMatFTIRGCMalFullMean)
+    pcaMatFTIRGCMalFullMean[, 9:15] <- apply(pcaMatFTIRGCMalFullMean[, 9:15], 
+                                             c(1,2),
+                                             as.numeric)
+    
+    rm(tempInd,
+       tempMat,
+       tempMat2,
+       loopI
+    )
+  }
+}
+
+#Plot on malformation, GCMS and FTIR data---------------------------------------
+{
+  #Box plot on FTIR and GCMS data
+  {
+    #FTIR
+    #PLS
+    boxFTIRPLS <- ggplot(pcaMatFTIRGCMalFull, 
+                                aes(y =  modelHeight$fitted.values[
+                                  ,,numCompsHeight],
+                                    x = Treatment)) +
+      geom_boxplot(outliers = FALSE) +
+      geom_jitter(aes(color = Materials), shape=16, position=position_jitter(0.2)) +
+      labs(y = 'PLS predicted values') +
+      scale_color_manual(values = c('cul' = 'red', 'cut' = 'blue'),
+                         labels = c('Cultivars', 'Cuttings')) +
+      theme_classic() +
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1),
+            legend.position = c(0.9, 0.9)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #Sub-divided by cultivars and cuttings
+    #PLS
+    boxSubFTIRPLS <- ggplot(pcaMatFTIRGCMalFull, 
+                                   aes(y = modelHeight$fitted.values[
+                                     ,,numCompsHeight],
+                                       x = Treatment,
+                                       fill = Materials)) +
+      geom_boxplot(outliers = FALSE) +
+      geom_jitter(aes(fill = Materials), shape=21, position=position_jitterdodge(0.2),
+                  color = 'black',
+                  stroke = 1,
+                  size = 2) +
+      labs(y = 'PLS predicted values') +
+      scale_fill_manual(values = c('cul' = 'red', 'cut' = 'blue'),
+                        labels = c('Cultivars', 'Cuttings')) +
+      theme_classic() +
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1),
+            legend.position = c(0.9, 0.9)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #Extract the group information between cuttings and pot cultivars
+    GCDataSub <- is.na(GCDataMean[, 6])
+    GCDataSub <- replace(GCDataSub, GCDataSub == FALSE,
+                         c('Cuttings'))
+    GCDataSub <- replace(GCDataSub, GCDataSub == TRUE,
+                         c('Cultivars'))
+    
+    #GC-MS
+    boxGCMS <- ggplot(GCDataMean, 
+                      aes(y = calibrated,
+                          x = Treatment)) +
+      geom_boxplot(outliers = FALSE) +
+      geom_jitter(aes(color = GCDataSub), shape=16, position=position_jitter(0.2)) +
+      scale_color_manual(values = c('Cuttings' = 'blue', 'Cultivars' = 'red')
+      ) +
+      labs(y = 'UV GC-MS (ng/100gr)', color = 'Materials') +
+      theme_classic() +
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1),
+            legend.position = c(0.9, 0.9)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #GC-MS subgroup
+    boxSubGCMS <- ggplot(GCDataMean, 
+                         aes(y = calibrated,
+                             x = Treatment,
+                             fill = GCDataSub)) +
+      geom_boxplot(outliers = FALSE) +
+      geom_jitter(aes(fill = GCDataSub) , shape=21, position=position_jitterdodge(0.2),
+                  color = 'black',
+                  stroke = 1,
+                  size = 2) +
+      scale_color_manual(values = c('Cuttings' = 'blue', 'Cultivars' = 'red')
+      ) +
+      scale_fill_manual(values = c('Cuttings' = 'blue', 'Cultivars' = 'red'),
+                        name = 'Materials') +
+      labs(y = 'UV GC-MS (ng/100gr)', color = 'Materials') +
+      theme_classic() +
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1),
+            legend.position = c(0.9, 0.9)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+  }
+  
+  #Scatter plot referring to malformation rate
+  {
+    #Create a matrix recording all signifcance results bettwen diffent subgroups
+    cuttingsPlantsMat <- matrix(nrow = length(unique(
+      pcaMatFTIRGCMalFullMean[which(pcaMatFTIRGCMalFullMean[, 5] == 'cut'),
+                              8
+      ]
+    )
+    ),
+    ncol = 17,
+    dimnames = list(c(),
+                    c('Plant', 'UV_Mal', 
+                      'CON_Mal',
+                      'GCMS',
+                      'PLS',
+                      'GCMS_UV',
+                      'GCMS_CON',
+                      'PLS_UV',
+                      'PLS_CON',
+                      'UV_Mal_sd',
+                      'CON_Mal_sd',
+                      'GCMS_sd',
+                      'PLS_sd',
+                      'GCMS_UV_sd',
+                      'GCMS_CON_sd',
+                      'PLS_UV_sd',
+                      'PLS_CON_sd')))
+    
+    #Fill batch information into the matrix
+    cuttingsPlantsMat[, 1] <- sort(as.numeric(unique(
+      pcaMatFTIRGCMalFullMean[which(pcaMatFTIRGCMalFullMean[, 5] == 'cut'),
+                              8
+      ])), decreasing = F)
+    
+    #Row indexes for all cuttings in the general matrix
+    tempMat <-  pcaMatFTIRGCMalFullMean[
+      which(pcaMatFTIRGCMalFullMean[, 5] == 'cut'),]
+
+    #Loop to fill the matrix
+    for (loopI in cuttingsPlantsMat[, 1]) {
+      
+      #Mean of malformation rates in all UV groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 2] <- mean(tempMat[
+        which((tempMat[, 7] == 'UV' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 14],
+                                          na.rm = TRUE)
+      
+      #Mean of malformation rates in all Control groups, and sub grouped by 
+        #plants
+      cuttingsPlantsMat[loopI, 3] <- mean(tempMat[
+        which((tempMat[, 7] == 'CON' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 14],
+                                          na.rm = TRUE)
+      
+      #Mean of GCMS signals sub grouped by plants
+      cuttingsPlantsMat[loopI, 4] <- mean(tempMat[
+        which((as.numeric(tempMat[, 8]) == loopI)), 10],
+                                          na.rm = TRUE)
+      
+      #Mean of PLS predicted values sub grouped by plants
+      cuttingsPlantsMat[loopI, 5] <- mean(tempMat[
+        which((as.numeric(tempMat[, 8]) == loopI)), 9],
+                                          na.rm = TRUE)
+      
+      #Mean of GCMS signals in all UV groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 6] <- mean(tempMat[
+        which(((tempMat[, 7] == 'UV' ) & 
+                 as.numeric(tempMat[, 8]) == loopI)), 10],
+                                          na.rm = TRUE)
+      
+      #Mean of GCMS signals in all Control groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 7] <- mean(tempMat[
+        which((tempMat[, 7] == 'CON' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 10],
+                                           na.rm = TRUE)
+      
+      #Mean of PLS predicted values in all UV groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 8] <- mean(tempMat[
+        which((tempMat[, 7] == 'UV' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 9],
+                                           na.rm = TRUE)
+      
+      #Mean of PLS predicted values in all Control groups, and sub grouped by 
+        #plants
+      cuttingsPlantsMat[loopI, 9] <- mean(tempMat[
+        which((tempMat[, 7] == 'CON' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 9],
+                                           na.rm = TRUE)
+
+      #Sd of malformation rates in all UV groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 10] <- sd(tempMat[
+        which((tempMat[, 7] == 'UV' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 14],
+                                         na.rm = TRUE)
+      
+      #Sd of malformation rates in all Control groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 11] <- sd(tempMat[
+        which((tempMat[, 7] == 'CON' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 14],
+                                         na.rm = TRUE)
+      
+      #Sd of GCMS signals sub grouped by plants
+      cuttingsPlantsMat[loopI, 12] <- sd(tempMat[
+        which((as.numeric(tempMat[, 8]) == loopI)), 10],
+                                         na.rm = TRUE)
+      
+      #Sd of PLS predicted values sub grouped by plants
+      cuttingsPlantsMat[loopI, 13] <- sd(tempMat[
+        which((as.numeric(tempMat[, 8]) == loopI)), 9],
+                                         na.rm = TRUE)
+      
+      #Sd of GCMS signals in all UV groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 14] <- sd(tempMat[
+        which(((tempMat[, 7] == 'UV' ) & 
+                 as.numeric(tempMat[, 8]) == loopI)), 10],
+                                         na.rm = TRUE)
+      
+      #Sd of GCMS signals in all Control groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 15] <- sd(tempMat[
+        which((tempMat[, 7] == 'CON' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 10],
+                                         na.rm = TRUE)
+      
+      #Sd of PLS predicted values in all UV groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 16] <- sd(tempMat[
+        which((tempMat[, 7] == 'UV' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 9],
+                                         na.rm = TRUE)
+      
+      #Sd of PLS predicted values in all Control groups, and sub grouped by plants
+      cuttingsPlantsMat[loopI, 17] <- sd(tempMat[
+        which((tempMat[, 7] == 'CON' ) & 
+                (as.numeric(tempMat[, 8]) == loopI)), 9],
+                                         na.rm = TRUE)
+    }
+    
+    #Transfer matrix into dataframe
+    cuttingsPlantsMat <- as.data.frame(cuttingsPlantsMat)
+    cuttingsPlantsMat[, 1] <- as.character(cuttingsPlantsMat[, 1])
+    
+    #Calculate malformation rates in pot cultivars
+    tempVec <- (cultivarsRaw[, 15] - cultivarsRaw[, 2])/ cultivarsRaw[, 2]
+    cultivarMean <- vector(length = 4)
+    cultivarMean[1] <- mean(tempVec[which(cultivarsBatchInfo[, 4] == 'UV')])
+    cultivarMean[2] <- sd(tempVec[which(cultivarsBatchInfo[, 4] == 'UV')])
+    cultivarMean[3] <- mean(tempVec[which(cultivarsBatchInfo[, 4] == 'CON')])
+    cultivarMean[4] <- sd(tempVec[which(cultivarsBatchInfo[, 4] == 'CON')])
+    
+    #Point plot to compare ratios between con and uv treatment, on different plants
+    cuttingsPlantsPlot <-
+      ggplot() +
+      geom_point(data = cuttingsPlantsMat,
+                 aes(x = CON_Mal, y = UV_Mal, col = Plant)) +
+      geom_point(aes(x = cultivarMean[3] , y = cultivarMean[1], 
+                     color = 'Cultivars')) +
+      geom_errorbar(data = cuttingsPlantsMat,
+                    aes(x = CON_Mal, y = UV_Mal, col = Plant,
+                        ymin = UV_Mal - UV_Mal_sd,
+                        ymax = UV_Mal + UV_Mal_sd),
+                    linewidth = 1,
+                    width = 0.01) +
+      geom_errorbar(data = cuttingsPlantsMat,
+                    aes(x = CON_Mal, y = UV_Mal, col = Plant,
+                        xmin = CON_Mal - CON_Mal_sd,
+                        xmax = CON_Mal + CON_Mal_sd),
+                    linewidth = 1,
+                    width = 0.01,
+                    orientation = 'y') +
+      geom_errorbar(aes(x = cultivarMean[3] , y = cultivarMean[1], color = 'Cultivars',
+                        ymin = cultivarMean[1] - cultivarMean[2],
+                        ymax = cultivarMean[1] + cultivarMean[2]),
+                    linewidth = 1,
+                    width = 0.005) +
+      geom_errorbar(aes(x = cultivarMean[3] , y = cultivarMean[1], color = 'Cultivars',
+                        xmin = cultivarMean[3] - cultivarMean[4],
+                        xmax = cultivarMean[3] + cultivarMean[4]),
+                    linewidth = 1,
+                    width = 0.005,
+                    orientation = 'y') +
+      geom_abline (slope=1, linetype = "dashed", color="grey") +
+      scale_x_continuous(limits = c(-0.05, 0.15), name = 'CON malformation percentage',
+                         breaks = seq(0, 0.15, by = 0.05)) +
+      scale_y_continuous(limits = c(-0.05, 0.25), name = 'UV malformation percentage',
+                         breaks = seq(0, 0.25, by = 0.05)) +
+      scale_color_manual(name = 'Plant',
+                         values = c('1' = brewer.pal(6, 'Set2')[1],
+                                    '2' = brewer.pal(6, 'Set2')[2],
+                                    '3' = brewer.pal(6, 'Set2')[3],
+                                    '4' = brewer.pal(6, 'Set2')[4],
+                                    '5' = brewer.pal(6, 'Set2')[5],
+                                    '6' = brewer.pal(6, 'Set2')[6],
+                                    'Cultivars' = 'black')) +
+      theme_classic() +
+      theme(
+        panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+        axis.title.x = element_text(size = 20, family = 'arial'),
+        axis.text.x = element_text(size = 16, family = 'arial'),
+        
+        axis.text.y = element_text(size = 20, family = 'arial'),
+        axis.title.y = element_text(size = 16, family = 'arial'),
+        legend.position = "inside",
+        legend.position.inside = c(0.8, 0.2),
+        legend.text = element_text(size = 14, family = 'arial')
+      )
+  }
+  
+  #Bar plot - plant divided
+  {
+    #GCMS
+    cuttingsPlantsMatReOr1 <- cbind(
+      melt(cuttingsPlantsMat[,
+                             which(
+                               (colnames(cuttingsPlantsMat) == 'Plant') |
+                                 (colnames(cuttingsPlantsMat) == 'GCMS_UV') |
+                                 (colnames(cuttingsPlantsMat) == 'GCMS_CON'))], 
+           id = 'Plant',
+           value.name = 'Signal',
+           variable.name = 'GCMS'),
+      melt(cuttingsPlantsMat[,
+                             which((colnames(cuttingsPlantsMat) == 'Plant') |
+                                     (colnames(cuttingsPlantsMat) == 
+                                        'GCMS_UV_sd') | 
+                                     (colnames(cuttingsPlantsMat) == 
+                                        'GCMS_CON_sd'))], 
+                                         id = 'Plant',
+                                         value.name = 'SD',
+                                         variable.name = 'GCMS_SD')[, -1]
+    )
+    
+    #Bar plot on GC-MS
+    barPlotPlantGCMS <- ggplot() +
+      geom_boxplot(data = GCDataMean[c(1:65, 67:108),],
+                   aes(x = as.character(TreeNumber),
+                       y = calibrated,
+                       fill = factor(Treatment, levels = c('UV', 'CON'))),
+                   # stat = 'identity',
+                   # position="dodge",
+                   outliers = FALSE,
+                   alpha = 0.6) +
+      geom_boxplot(data = GCDataMean[109:133,],
+                   aes(x = 'Cultivars',
+                       y = calibrated,
+                       fill = factor(Treatment, levels = c('UV', 'CON'))),
+                   # stat = 'identity',
+                   # position="dodge",
+                   outliers = FALSE,
+                   alpha = 0.6) +
+      geom_jitter(data = GCDataMean[109:133,],
+                  aes(x = 'Cultivars',
+                      y = calibrated,
+                      fill = factor(Treatment, levels = c('UV', 'CON'))), shape=21, 
+                  position = position_jitterdodge(0.6),
+                  color = 'black',
+                  stroke = 1,
+                  size = 4,
+                  alpha = 0.6) +
+      geom_jitter(data = GCDataMean[c(1:65, 67:108),],
+                  aes(x = as.character(TreeNumber),
+                      y = calibrated,
+                      fill = factor(Treatment, levels = c('UV', 'CON'))), shape=21, 
+                  position = position_jitterdodge(0.6),
+                  color = 'black',
+                  stroke = 1,
+                  size = 4,
+                  alpha = 0.6) +
+      scale_y_continuous(name = 'UV GC-MS (ng/100gr)',
+                         # breaks = seq(0, 0.5, by = 0.1)
+      ) +
+      scale_fill_manual(values = c('GCMS_UV' = 'red',
+                                   'GCMS_CON' = 'blue',
+                                   'UV' = 'red',
+                                   'CON' = 'blue'),
+                        labels = c('UV', 'CON', 'UV', 'CON'),
+                        name = 'Treatment') +
+      labs(x = 'Tree') +
+      theme_classic() +
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1),
+            legend.position = c(0.8, 0.9),
+            legend.key = element_rect(fill = NA)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+    
+    #FTIR
+    cuttingsPlantsMatReOr4 <- cbind(
+      melt(cuttingsPlantsMat[,
+                             which((colnames(cuttingsPlantsMat) == 'Plant') |
+                                     (colnames(cuttingsPlantsMat) == 
+                                        'PLS_UV') |
+                                     (colnames(cuttingsPlantsMat) == 
+                                        'PLS_CON'))], 
+           id = 'Plant',
+           value.name = 'Signal',
+           ariable.name = 'PLS'),
+      melt(cuttingsPlantsMat[,
+                             which((colnames(cuttingsPlantsMat) == 'Plant') |
+                                     (colnames(cuttingsPlantsMat) == 
+                                        'PLS_UV_sd') | 
+                                     (colnames(cuttingsPlantsMat) == 
+                                        'PLS_CON_sd'))],
+           id = 'Plant',
+           value.name = 'SD',
+           variable.name = 'PLS_SD')[, -1]
+    )
+    
+    barPlotPlantPLS <- ggplot() +
+      geom_boxplot(data = pcaMatFTIRGCMalFull[which(pcaMatFTIRGCMalFull[, 5] == 'cut'),],
+                   aes(x = factor(as.numeric(Sample_ID), levels = c(1:6)),
+                       y = PLS,
+                       fill = factor(Treatment, levels = c('UV', 'CON'))),
+                   # stat = 'identity',
+                   # position="dodge",
+                   outliers = FALSE,
+                   alpha = 0.6) +
+      geom_boxplot(data = pcaMatFTIRGCMalFull[which(pcaMatFTIRGCMalFull[, 5] == 'cul'),],
+                   aes(x = 'Cultivars',
+                       y = PLS,
+                       fill = factor(Treatment, levels = c('UV', 'CON'))),
+                   # stat = 'identity',
+                   # position="dodge",
+                   outliers = FALSE,
+                   alpha = 0.6) +
+      geom_jitter(data = pcaMatFTIRGCMalFull[which(pcaMatFTIRGCMalFull[, 5] == 'cut'),],
+                  aes(x = factor(as.numeric(Sample_ID), levels = c(1:6)),
+                      y = PLS,
+                      fill = factor(Treatment, levels = c('UV', 'CON'))), shape=21, 
+                  position = position_jitterdodge(0.6),
+                  color = 'black',
+                  stroke = 1,
+                  size = 4,
+                  alpha = 0.6) +
+      geom_jitter(data = pcaMatFTIRGCMalFull[which(pcaMatFTIRGCMalFull[, 5] == 'cul'),],
+                  aes(x = 'Cultivars',
+                      y = PLS,
+                      fill = factor(Treatment, levels = c('UV', 'CON'))), shape=21, 
+                  position = position_jitterdodge(0.6),
+                  color = 'black',
+                  stroke = 1,
+                  size = 4,
+                  alpha = 0.6) +
+      scale_y_continuous(name = 'PLS fitted value',
+                         # breaks = seq(0, 3, by = 1)
+      ) +
+      scale_x_discrete(name = 'Plant') +
+      scale_fill_manual(values = c('PLS_UV' = 'red',
+                                   'PLS_CON' = 'blue',
+                                   'UV' = 'red',
+                                   'CON' = 'blue'),
+                        labels = c('UV', 'CON', 'UV', 'CON'),
+                        name = 'Treatment') +
+      labs(x = 'Tree') +
+      theme_classic() +
+      theme(plot.title = element_blank(), 
+            axis.title.y = element_text(size = 14, family = 'arial'),
+            axis.text.y = element_text(size = 12, family = 'arial'),
+            axis.title.x = element_text(size = 14, family = 'arial'),
+            axis.text.x = element_text(size = 12, family = 'arial'),
+            panel.border = element_rect(colour = "black", fill=NA, linewidth=1),
+            legend.position = c(0.8, 0.9),
+            legend.background = element_rect(fill = NA)
+            # axis.line.y = element_blank(),
+            # axis.text.x = element_blank(), 
+            # axis.line.x = element_blank(),
+            # axis.title.x = element_blank(),
+            # axis.ticks.x = element_blank()
+      )
+  }
+  
+  #Output figures
+  {
+    #FTIR boxplot
+    pdf(file = file.path('..', 'Figures_R', 'FTIR.pdf'),
+        width = 12, # The width of the plot in inches
+        height = 12)
+    
+    (boxFTIRPLS | boxSubFTIRPLS) /
+      (barPlotPlantPLS | barPlotPlantPLS)
+    
+    dev.off()
+    
+    #GCMS boxplot
+    pdf(file = file.path('..', 'Figures_R', 'GCMS.pdf'),
+        width = 12, # The width of the plot in inches
+        height = 12)
+    
+    (boxGCMS | boxSubGCMS) /
+      (barPlotPlantGCMS | barPlotPlantGCMS)
+    
+    dev.off()
+    
+    #Malformation
+    pdf(file = file.path('..', 'Figures_R', 'Malformation.pdf'),
+        width = 12, # The width of the plot in inches
+        height = 12)
+    
+    cuttingsPlantsPlot
+    
+    dev.off()
+    
+    #GCMS VS FTIR
+    pdf(file =  file.path('..', 'Figures_R', 'GCMS_FTIR.pdf'),
+        width = 12, # The width of the plot in inches
+        height = 6)
+    
+    barPlotPlantPLS | barPlotPlantGCMS
+    
+    dev.off()
+    
+  }
+}
+```
+
+### Figures on Malformation rate
+
+```{r malformation rate plot, echo = TRUE}
+cuttingsPlantsPlot
+```
+
+### Figures on GCMS and FTIR signals
+
+```{r GCMS & FTIR plot, echo = FALSE}
+ (boxGCMS | boxSubGCMS) /
+      (barPlotPlantGCMS | barPlotPlantGCMS)
+
+(boxFTIRPLS | boxSubFTIRPLS) /
+      (barPlotPlantPLS | barPlotPlantPLS)
+```
+
+### ANOVA analysis This analysis is to test the significance of GCMS/FTIR
+signals between different subgroups (UV/CONTROL, plant 1-6,
+cuttings/cultivars). Student-t test is used. The table recording all
+significane test results are available in 'Output_R' folder.
+
+```{r statistic analysis, include = FALSE}
+#Statistic analysis on peak signals and malformation rates----------------------
+{
+  #GCMS
+  {
+    #GCMS whole
+    tempVec1 <- which(GCDataMean[, 4] == 'UV')
+    tempVec2 <- which(GCDataMean[, 4] == 'CON')
+    
+    stuTMatGCMS <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                          ncol = 2,
+                          dimnames = list(c(),
+                                          c('UV', 'CON')))
+    
+    stuTMatGCMS[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMS[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMS <- t.test(stuTMatGCMS[, 1], stuTMatGCMS[, 2],
+                          var.equal = FALSE, alternative = 'greater')
+    
+    #GCMS whole subgroup UV
+    tempVec1 <- which((GCDataMean[, 4] == 'UV') &
+                        (is.na(GCDataMean[, 6])))
+    tempVec2 <- which(GCDataMean[, 4] == 'UV'&
+                        (!is.na(GCDataMean[, 6])))
+    
+    stuTMatGCMSSubUV <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                               ncol = 2,
+                               dimnames = list(c(),
+                                               c('Cul', 'Cut')))
+    
+    stuTMatGCMSSubUV[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSSubUV[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSSubUV <- t.test(stuTMatGCMSSubUV[, 1], stuTMatGCMSSubUV[, 2],
+                               var.equal = FALSE, alternative = 'greater')
+    
+    #GCMS whole subgroup CON
+    tempVec1 <- which((GCDataMean[, 4] == 'CON') &
+                        (is.na(GCDataMean[, 6])))
+    tempVec2 <- which(GCDataMean[, 4] == 'CON'&
+                        (!is.na(GCDataMean[, 6])))
+    
+    stuTMatGCMSSubCON <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                ncol = 2,
+                                dimnames = list(c(),
+                                                c('Cul', 'Cut')))
+    
+    stuTMatGCMSSubCON[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSSubCON[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSSubCON <- t.test(stuTMatGCMSSubCON[, 1], stuTMatGCMSSubCON[, 2],
+                                var.equal = FALSE, alternative = 'greater')
+    
+    #GCMS cul and cut subgroup
+    tempVec1 <- which((GCDataMean[, 4] == 'UV')&
+                        is.na(GCDataMean[, 6]))
+    tempVec2 <- which((GCDataMean[, 4] == 'CON')&
+                        is.na(GCDataMean[, 6]))
+    
+    stuTMatGCMSCul <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                             ncol = 2,
+                             dimnames = list(c(),
+                                             c('UV', 'CON')))
+    
+    stuTMatGCMSCul[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSCul[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSCul <- t.test(stuTMatGCMSCul[, 1], stuTMatGCMSCul[, 2],
+                             var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((GCDataMean[, 4] == 'UV')&
+                        !is.na(GCDataMean[, 6]))
+    tempVec2 <- which((GCDataMean[, 4] == 'CON')&
+                        !is.na(GCDataMean[, 6]))
+    
+    stuTMatGCMSCut <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                             ncol = 2,
+                             dimnames = list(c(),
+                                             c('UV', 'CON')))
+    
+    stuTMatGCMSCut[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSCut[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSCut <- t.test(stuTMatGCMSCut[, 1], stuTMatGCMSCut[, 2],
+                             var.equal = FALSE, alternative = 'greater')
+    
+    #GCMS Plant subgroup
+    tempVec1 <- which((GCDataMean[, 4] == 'UV')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '1'))
+    tempVec2 <- which((GCDataMean[, 4] == 'CON')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '1'))
+    
+    stuTMatGCMSPlant1 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                ncol = 2,
+                                dimnames = list(c(),
+                                                c('UV', 'CON')))
+    
+    stuTMatGCMSPlant1[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSPlant1[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSPlant1 <- t.test(stuTMatGCMSPlant1[, 1], stuTMatGCMSPlant1[, 2],
+                                var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((GCDataMean[, 4] == 'UV')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '2'))
+    tempVec2 <- which((GCDataMean[, 4] == 'CON')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '2'))
+    
+    stuTMatGCMSPlant2 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                ncol = 2,
+                                dimnames = list(c(),
+                                                c('UV', 'CON')))
+    
+    stuTMatGCMSPlant2[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSPlant2[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSPlant2 <- t.test(stuTMatGCMSPlant2[, 1], stuTMatGCMSPlant2[, 2],
+                                var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((GCDataMean[, 4] == 'UV')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '3'))
+    tempVec2 <- which((GCDataMean[, 4] == 'CON')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '3'))
+    
+    stuTMatGCMSPlant3 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                ncol = 2,
+                                dimnames = list(c(),
+                                                c('UV', 'CON')))
+    
+    stuTMatGCMSPlant3[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSPlant3[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSPlant3 <- t.test(stuTMatGCMSPlant3[, 1], stuTMatGCMSPlant3[, 2],
+                                var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((GCDataMean[, 4] == 'UV')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '4'))
+    tempVec2 <- which((GCDataMean[, 4] == 'CON')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '4'))
+    
+    stuTMatGCMSPlant4 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                ncol = 2,
+                                dimnames = list(c(),
+                                                c('UV', 'CON')))
+    
+    stuTMatGCMSPlant4[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSPlant4[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSPlant4 <- t.test(stuTMatGCMSPlant4[, 1], stuTMatGCMSPlant4[, 2],
+                                var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((GCDataMean[, 4] == 'UV')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '5'))
+    tempVec2 <- which((GCDataMean[, 4] == 'CON')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '5'))
+    
+    stuTMatGCMSPlant5 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                ncol = 2,
+                                dimnames = list(c(),
+                                                c('UV', 'CON')))
+    
+    stuTMatGCMSPlant5[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSPlant5[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSPlant5 <- t.test(stuTMatGCMSPlant5[, 1], stuTMatGCMSPlant5[, 2],
+                                var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((GCDataMean[, 4] == 'UV')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '6'))
+    tempVec2 <- which((GCDataMean[, 4] == 'CON')&
+                        !is.na(GCDataMean[, 6]) &
+                        (GCDataMean[, 5] == '6'))
+    
+    stuTMatGCMSPlant6 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                ncol = 2,
+                                dimnames = list(c(),
+                                                c('UV', 'CON')))
+    
+    stuTMatGCMSPlant6[1:length(tempVec1), 1] <- GCDataMean[tempVec1, 1]
+    stuTMatGCMSPlant6[1:length(tempVec2), 2] <- GCDataMean[tempVec2, 1]
+    
+    stuTResGCMSPlant6 <- t.test(stuTMatGCMSPlant6[, 1], stuTMatGCMSPlant6[, 2],
+                                var.equal = FALSE, alternative = 'greater')
+  }
+  
+  #FTIR PLS
+  {
+    #FTIRPLS whole
+    tempVec1 <- which(pcaMatFTIRGCMalFull[, 7] == 'UV')
+    tempVec2 <- which(pcaMatFTIRGCMalFull[, 7] == 'CON')
+    
+    stuTMatFTIRPLS <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                     ncol = 2,
+                                     dimnames = list(c(),
+                                                     c('UV', 'CON')))
+    
+    stuTMatFTIRPLS[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLS[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLS <- t.test(stuTMatFTIRPLS[, 1], stuTMatFTIRPLS[, 2],
+                                     var.equal = FALSE, alternative = 'greater')
+    
+    #FTIRPLS whole subgroup UV
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV') &
+                        (pcaMatFTIRGCMalFull[, 5] == 'cul'))
+    tempVec2 <- which(pcaMatFTIRGCMalFull[, 7] == 'UV'&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut'))
+    
+    stuTMatFTIRPLSSubUV <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                          ncol = 2,
+                                          dimnames = list(c(),
+                                                          c('Cul', 'Cut')))
+    
+    stuTMatFTIRPLSSubUV[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSSubUV[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSSubUV <- t.test(stuTMatFTIRPLSSubUV[, 1], stuTMatFTIRPLSSubUV[, 2],
+                                          var.equal = FALSE, alternative = 'greater')
+    
+    #FTIRPLS whole subgroup CON
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON') &
+                        (pcaMatFTIRGCMalFull[, 5] == 'cul'))
+    tempVec2 <- which(pcaMatFTIRGCMalFull[, 7] == 'CON'&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut'))
+    
+    stuTMatFTIRPLSSubCON <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                           ncol = 2,
+                                           dimnames = list(c(),
+                                                           c('Cul', 'Cut')))
+    
+    stuTMatFTIRPLSSubCON[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSSubCON[1:length(tempVec2), 2] <-pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSSubCON <- t.test(stuTMatFTIRPLSSubCON[, 1], stuTMatFTIRPLSSubCON[, 2],
+                                           var.equal = FALSE, alternative = 'greater')
+    
+    #FTIRPLS cul and cut subgroup
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cul'))
+    tempVec2 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cul'))
+    
+    stuTMatFTIRPLSCul <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                        ncol = 2,
+                                        dimnames = list(c(),
+                                                        c('UV', 'CON')))
+    
+    stuTMatFTIRPLSCul[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSCul[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSCul <- t.test(stuTMatFTIRPLSCul[, 1], stuTMatFTIRPLSCul[, 2],
+                                        var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut'))
+    tempVec2 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut'))
+    
+    stuTMatFTIRPLSCut <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                        ncol = 2,
+                                        dimnames = list(c(),
+                                                        c('UV', 'CON')))
+    
+    stuTMatFTIRPLSCut[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSCut[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSCut <- t.test(stuTMatFTIRPLSCut[, 1], stuTMatFTIRPLSCut[, 2],
+                                        var.equal = FALSE, alternative = 'greater')
+    
+    #FTIRPLS Plant subgroup
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '1'))
+    tempVec2 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '1'))
+    
+    stuTMatFTIRPLSPlant1 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                           ncol = 2,
+                                           dimnames = list(c(),
+                                                           c('UV', 'CON')))
+    
+    stuTMatFTIRPLSPlant1[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSPlant1[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSPlant1 <- t.test(stuTMatFTIRPLSPlant1[, 1], stuTMatFTIRPLSPlant1[, 2],
+                                           var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '2'))
+    tempVec2 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '2'))
+    
+    stuTMatFTIRPLSPlant2 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                           ncol = 2,
+                                           dimnames = list(c(),
+                                                           c('UV', 'CON')))
+    
+    stuTMatFTIRPLSPlant2[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSPlant2[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSPlant2 <- t.test(stuTMatFTIRPLSPlant2[, 1], stuTMatFTIRPLSPlant2[, 2],
+                                           var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '3'))
+    tempVec2 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '3'))
+    
+    stuTMatFTIRPLSPlant3 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                           ncol = 2,
+                                           dimnames = list(c(),
+                                                           c('UV', 'CON')))
+    
+    stuTMatFTIRPLSPlant3[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSPlant3[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSPlant3 <- t.test(stuTMatFTIRPLSPlant3[, 1], stuTMatFTIRPLSPlant3[, 2],
+                                           var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '4'))
+    tempVec2 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '4'))
+    
+    stuTMatFTIRPLSPlant4 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                           ncol = 2,
+                                           dimnames = list(c(),
+                                                           c('UV', 'CON')))
+    
+    stuTMatFTIRPLSPlant4[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSPlant4[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSPlant4 <- t.test(stuTMatFTIRPLSPlant4[, 1], stuTMatFTIRPLSPlant4[, 2],
+                                           var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '5'))
+    tempVec2 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '5'))
+    
+    stuTMatFTIRPLSPlant5 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                           ncol = 2,
+                                           dimnames = list(c(),
+                                                           c('UV', 'CON')))
+    
+    stuTMatFTIRPLSPlant5[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSPlant5[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSPlant5 <- t.test(stuTMatFTIRPLSPlant5[, 1], stuTMatFTIRPLSPlant5[, 2],
+                                           var.equal = FALSE, alternative = 'greater')
+    
+    tempVec1 <- which((pcaMatFTIRGCMalFull[, 7] == 'UV')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '6'))
+    tempVec2 <- which((pcaMatFTIRGCMalFull[, 7] == 'CON')&
+                        (pcaMatFTIRGCMalFull[, 5] == 'cut') &
+                        (as.character(as.numeric(pcaMatFTIRGCMalFull[, 8])) == '6'))
+    
+    stuTMatFTIRPLSPlant6 <- matrix(nrow = max(length(tempVec1), length(tempVec2)),
+                                           ncol = 2,
+                                           dimnames = list(c(),
+                                                           c('UV', 'CON')))
+    
+    stuTMatFTIRPLSPlant6[1:length(tempVec1), 1] <- pcaMatFTIRGCMalFull[tempVec1, 11]
+    stuTMatFTIRPLSPlant6[1:length(tempVec2), 2] <- pcaMatFTIRGCMalFull[tempVec2, 11]
+    
+    stuTResFTIRPLSPlant6 <- t.test(stuTMatFTIRPLSPlant6[, 1], stuTMatFTIRPLSPlant6[, 2],
+                                           var.equal = FALSE, alternative = 'greater')
+  }
+  
+  #Combine all ANOVA results
+  {
+    #Create matrix for recording all significance test results
+    stuTMatAll <- matrix(nrow = 22,
+                         ncol = 5,
+                         dimnames = list(c(),
+                                         c('Group',
+                                           'UV_Mean',
+                                           'CON_Mean',
+                                           'Sig',
+                                           'Mark')))
+    
+    stuTMatAll[, 1] <- c(paste(rep('GCMS', 11), c('', 'SubUV', 'SubCON',
+                                                  'Cut', 'Cul',
+                                                  paste('Plant', 1:6, sep = ''
+                                                  )
+    ),
+    sep = ''),
+    paste(rep('FTIRPLS', 11), c('', 'SubUV', 'SubCON',
+                                        'Cut', 'Cul',
+                                        paste('Plant', 1:6, sep = ''
+                                        )
+    ),
+    sep = '')
+    )
+    
+    for (loopI in 1:nrow(stuTMatAll)) {
+      
+      stuTMatAll[loopI, 2:3] <- get(str_replace_all(paste('stuTRes', stuTMatAll[loopI, 1],
+                                                          sep = '', collapse = NULL), ' ', ''))[[5]]
+      
+      stuTMatAll[loopI, 4] <- get(str_replace_all(paste('stuTRes', stuTMatAll[loopI, 1], 
+                                                        sep = '', collapse = NULL), ' ', ''))[[3]]
+      
+      stuTMatAll[loopI, 5] <- sigMarkter(stuTMatAll[loopI, 4], c(0.1, 0.05, 0.01))
+    }
+  }
+  
+  #Output results
+  {
+    write.csv(stuTMatAll, 
+              file = file.path('..', 'Output_R', 'stuTMatAll.csv'))
+  }
+  
+  #Remove unused variables
+  rm(tempMat,
+     loopI)
+}
+```
+
+### Table on significance test results
+
+```{r significance table, echo = TRUE}
+stuTMatAll
+```
+
+### Information on package information used in this R project (script): R
+version 4.5.3 (2026-03-11) Platform: x86_64-apple-darwin20 Running
+under: macOS Tahoe 26.3.1
+
+Matrix products: default BLAS:
+/System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib
+LAPACK:
+/Library/Frameworks/R.framework/Versions/4.5-x86_64/Resources/lib/libRlapack.dylib;
+LAPACK version 3.12.1
+
+locale: [1]
+en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+time zone: Europe/Oslo tzcode source: internal
+
+attached base packages: [1] stats graphics grDevices utils datasets
+methods base
+
+other attached packages: [1] stringr_1.6.0 reshape2_1.4.5
+robCompositions_2.4.2 data.table_1.18.2.1\
+[5] pls_2.9-0 easyCODA_0.40.2 compositions_2.0-9 RColorBrewer_1.1-3\
+[9] FactoMineR_2.13 factoextra_2.0.0 showtext_0.9-7 showtextdb_3.0\
+[13] sysfonts_0.8.9 patchwork_1.3.2 ggplot2_4.0.2 doSNOW_1.0.20\
+[17] snow_0.4-4 iterators_1.0.14 foreach_1.5.2 photobiology_0.14.2\
+[21] SunCalcMeeus_0.1.3 baseline_1.3-7 prospectr_0.2.8 opusreader_0.4.2
+
+loaded via a namespace (and not attached): [1] vcd_1.4-13 mathjaxr_2.0-0
+tensorA_0.36.2.1 magrittr_2.0.4\
+[5] rainbow_3.8 estimability_1.5.1 farver_2.1.2 rmarkdown_2.30\
+[9] vctrs_0.7.1 RCurl_1.98-1.17 htmltools_0.5.9 truncnorm_1.0-9\
+[13] deSolve_1.42 Formula_1.2-5 robustHD_0.8.4 hdrcde_3.5.0\
+[17] pracma_2.4.6 parallelly_1.46.1 KernSmooth_2.23-26
+htmlwidgets_1.6.4\
+[21] mlr3_1.5.0 plyr_1.8.9 zoo_1.8-15 mlr3tuning_1.6.0\
+[25] palmerpenguins_0.1.1 emmeans_2.0.2 uuid_1.2-2 lifecycle_1.0.5\
+[29] pkgconfig_2.0.3 rsvd_1.0.5 Matrix_1.7-4 R6_2.6.1\
+[33] fastmap_1.2.0 future_1.70.0 digest_0.6.39 sparsepca_0.1.2\
+[37] colorspace_2.1-2 GGally_2.4.0 mlr3misc_0.21.0 ellipse_0.5.0\
+[41] vegan_2.7-3 labeling_0.4.3 abind_1.4-8 mgcv_1.9-4\
+[45] compiler_4.5.3 proxy_0.4-29 withr_3.0.2 S7_0.2.1\
+[49] backports_1.5.0 carData_3.0-6 ggstats_0.13.0 MASS_7.3-65\
+[53] bayesm_3.1-7 scatterplot3d_0.3-45 permute_0.9-10 flashClust_1.1-4\
+[57] tools_4.5.3 lmtest_0.9-40 ranger_0.18.0 rrcov_1.7-7\
+[61] otel_0.2.0 nnet_7.3-20 glue_1.8.0 lgr_0.5.2\
+[65] cvTools_0.3.3 nlme_3.1-168 grid_4.5.3 checkmate_2.3.4\
+[69] cluster_2.1.8.2 generics_0.1.4 fda_6.3.0 gtable_0.3.6\
+[73] class_7.3-23 ca_0.71.1 tidyr_1.3.2 sp_2.2-1\
+[77] car_3.1-5 ggrepel_0.9.8 pillar_1.11.1 VIM_7.0.0\
+[81] bbotk_1.9.0 robustbase_0.99-7 splines_4.5.3 dplyr_1.2.0\
+[85] lattice_0.22-9 survival_3.8-6 ks_1.15.1 SparseM_1.84-2\
+[89] tidyselect_1.2.1 fds_1.8 knitr_1.51 gridExtra_2.3\
+[93] zCompositions_1.6.0 stats4_4.5.3 xfun_0.56 DEoptimR_1.1-4\
+[97] DT_0.34.0 stringi_1.8.7 yaml_2.3.12 boot_1.3-32\
+[101] evaluate_1.0.5 codetools_0.2-20 kernlab_0.9-33 laeken_0.5.3\
+[105] tibble_3.3.1 multcompView_0.1-11 cli_3.6.5 mlr3learners_0.14.0
+[109] Rcpp_1.1.1 globals_0.19.1 parallel_4.5.3 leaps_3.2\
+[113] ggfortify_0.4.19 mclust_6.1.2 bitops_1.0-9 paradox_1.0.1\
+[117] listenv_0.10.1 perry_0.3.1 mvtnorm_1.3-6 mlr3pipelines_0.11.0
+[121] scales_1.4.0 e1071_1.7-17 pcaPP_2.0-5 purrr_1.2.1\
+[125] crayon_1.5.3 rlang_1.1.7
