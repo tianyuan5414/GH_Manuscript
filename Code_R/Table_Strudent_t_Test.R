@@ -490,6 +490,5 @@
   }
   
   #Remove unused variables
-  rm(tempMat,
-     loopI)
+  rm(loopI)
 }

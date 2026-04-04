@@ -10,7 +10,7 @@
   showtext_auto()
 }
 
-#Read GCMS and FTIR data
+#Read GCMS and FTIR data--------------------------------------------------------
 {
   pcaMatFTIRGCMalFull <- read.csv(file = file.path('Output_R',
                                                    'PLS_Nor.csv'),

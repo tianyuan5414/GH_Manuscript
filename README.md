@@ -68,7 +68,7 @@ For identified peak information in each FTIR spectrum (including FTIR duplicates
 
 -   004_PLS.R
 
-PLS analysis is based on identifed and checked peaks, where 14 peaks are input as variables in PLS model. Some peaks were not used for PLS analysis as they are not identifed in every spectrum.
+PLS analysis is based on identifed and checked peaks, where 14 peaks are input as variables in PLS model. Some peaks were not used for PLS analysis as they are not identifed in every spectrum. This script also output the figures about PLS model
 
 ### Combine Malformation results with GCMS signals and FTIR PLS fitted values
 

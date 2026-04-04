@@ -510,7 +510,7 @@
   #Read raw spectra (smoothed and baseline corrected, z-score standardisation)
   {
     #Read standardised FTIR spectra
-    bcSpec <- read.csv(file.path( 'Data_R', 'bcNorSpec.csv'),
+    bcSpec <- read.csv(file.path( 'Output_R', 'bcNorSpec.csv'),
                        row.names = 1,
                        header = TRUE)
     

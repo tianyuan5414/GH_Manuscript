@@ -38,6 +38,37 @@
       }
     }
   }
+  
+  #Generate a string to show the statistics of a regression model
+  lm_eqn2 <- function(compI){
+    m <- lm(modelHeight$model$calibrated ~ modelHeight$fitted.values[,,compI]);
+    eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2,
+                     list(a = format(unname(coef(m)[1]), digits = 2),
+                          b = format(unname(coef(m)[2]), digits = 2),
+                          r2 = format(summary(m)$r.squared, digits = 3)))
+    as.character(as.expression(eq));
+  }
+  
+  #Detect the symbol of given value, and output 1 or -1 accordingly
+  symbolDec <- function(tempVec){
+    
+    tempVec2 <- tempVec
+    
+    for (loopI in 1:length(tempVec)) {
+      if (tempVec[loopI] <= 0) {
+        
+        tempVec2[loopI] <- -1
+        
+      }else{
+        
+        tempVec2[loopI] <- 1
+        
+      }
+    }
+    
+    return(tempVec2)
+    
+  }
 }
 
 #PLS analysis-------------------------------------------------------------------
@@ -48,6 +79,12 @@
     pcaMatHeight <- read.csv(file = 
                                file.path('Output_R', 'pcaMatHeightCom.csv'),
                              row.names = 1)
+    
+    #Adjust the colomn names so that they reflect the wavenumber position of the
+      #peak
+    colnames(pcaMatHeight)[11:24] <- substr(colnames(pcaMatHeight)[11:24], 
+                                            2,
+                                            nchar(colnames(pcaMatHeight)[11:24]))
     
     #Clean up the matrix to exclude NA values in GC-MS data
     pcaMatHeight <- pcaMatHeight[which(!is.na(pcaMatHeight[, ncol(pcaMatHeight) - 1])), ]
@@ -95,13 +132,16 @@
     
     #Plot correlation coefficient under the selected number of components
     modelHeightCof <- ggplot() +
-      geom_bar(aes(x = peakPos, y = modelHeight$coefficients[, , numCompsHeight]),
+      geom_bar(aes(x = as.numeric(colnames(pcaMatHeight)[11:24]), 
+                   y = modelHeight$coefficients[, , numCompsHeight]),
                stat = 'identity') +
       geom_hline(yintercept = 0) +
       geom_text(
-        aes(x = peakPos, y = modelHeight$coefficients[, ,numCompsHeight] + 
-              min(abs(modelHeight$coefficients[, ,numCompsHeight])) *0.4 * symbolDec(modelHeight$coefficients[, ,numCompsHeight]),
-            label = peakPos), parse = TRUE, 
+        aes(x = as.numeric(colnames(pcaMatHeight)[11:24]), 
+            y = modelHeight$coefficients[, ,numCompsHeight] + 
+              min(abs(modelHeight$coefficients[, ,numCompsHeight])) *0.4 * 
+              symbolDec(modelHeight$coefficients[, ,numCompsHeight]),
+            label = as.numeric(colnames(pcaMatHeight)[11:24])), parse = TRUE, 
         check_overlap = T) +
       scale_x_reverse(limit = c(3500, 500),
                       breaks = seq(3500, 500, by = -500)) +
@@ -123,13 +163,13 @@
     
     #Plot variable loadings under the first components
     modelHeightLoa <- ggplot() +
-      geom_bar(aes(x = peakPos, y = modelHeight$loadings[, 1]),
+      geom_bar(aes(x = as.numeric(colnames(pcaMatHeight)[11:24]), y = modelHeight$loadings[, 1]),
                stat = 'identity') +
       geom_hline(yintercept = 0) +
       geom_text(
-        aes(x = peakPos, y = modelHeight$loadings[, 1] + 
+        aes(x = as.numeric(colnames(pcaMatHeight)[11:24]), y = modelHeight$loadings[, 1] + 
               min(abs(modelHeight$loadings[, 1])) *0.4 * symbolDec(modelHeight$loadings[, 1]),
-            label = peakPos), parse = TRUE, 
+            label = as.numeric(colnames(pcaMatHeight)[11:24])), parse = TRUE, 
         check_overlap = T) +
       scale_x_reverse(limit = c(3500, 500),
                       breaks = seq(3500, 500, by = -500)) +
@@ -214,6 +254,17 @@
 
 #Output PLS results-------------------------------------------------------------
 {
+  #Output PLS model on current FTIR dataset
+  pdf(file = file.path('Figures_R', 'PLS_Full.pdf'),   # The directory you want to save the file in
+      width = 8, # The width of the plot in inches
+      height = 12)
+  
+  (plsPlotHeight | modelHeightVar) /
+    (modelHeightCof | modelHeightLoa) /
+    (plsPlotHeightResi | plsPlotHeightResi)
+  
+  dev.off()
+  
   #Combine the PLS predicted values to the FTIR peak statistics
   tempMat <- cbind(pcaMatHeight, modelHeight$fitted.values[,, numCompsHeight])
   

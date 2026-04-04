@@ -94,7 +94,7 @@
 #Read all OPUS files
 {
   #List all the folder for different measuring days
-  daysVec <- list.files(path = file.path('Data_R', 'FTIR_Raw_Data'))
+  daysVec <- list.files(path = file.path('Data_R', 'FTIR_Raw_Spectra'))
   
   #Loop to list all .o files in each folder above
   #List for storing all names of spectra files
@@ -102,7 +102,7 @@
   for (loopI in 1:length(daysVec)) {
     
     namesList[[length(namesList) + 1]] <- 
-      list.files(path = file.path('Data_R', 'FTIR_Raw_Data',
+      list.files(path = file.path('Data_R', 'FTIR_Raw_Spectra',
                                     daysVec[loopI]), 
                  pattern = '\\.0$')
     
@@ -137,8 +137,9 @@
     
     for (loopJ in 1:length(namesList[[loopI]])) {
       rawSpecList[[loopI]][[loopJ]] <- 
-        opus_read(file = here('RawData', daysVec[loopI], 
-                              namesList[[loopI]][loopJ]
+        opus_read(file = file.path('Data_R','FTIR_Raw_Spectra', 
+                                   daysVec[loopI], 
+                                   namesList[[loopI]][loopJ]
         ),
         simplify = TRUE)
       
@@ -219,10 +220,24 @@
                                       -length(tempWaveSeq))]
 }
 
-#Z-score standardisation
+#Z-score standardisation or standatadise to the area between 2800 and 1800 cm-1
 {
-  #Z-score
-  bcNorSpec <- t(apply(bcSpec, 1, zstandMax))
+  #Specify the range of wavenumebr to be used as normalising the spectra
+  tempRange <- c(2800, 1800)
+  tempArea <- rowSums(bcSpec[,which(as.numeric(colnames(bcSpec)) 
+                                    == tempRange[1]):
+                               which(as.numeric(colnames(bcSpec)) 
+                                     == tempRange[2])])
+  
+  #Normalise the spectra by the summed area above
+  bcNorSpec <- sweep(bcSpec, 1, tempArea, FUN = "/")
+  
+  # #Z-score
+  # bcNorSpec <- t(apply(bcSpec, 1, zstandMax))
+  
+  #Remove useless variables
+  rm(tempRange,
+     tempArea)
 }
 
 #Output datasets
