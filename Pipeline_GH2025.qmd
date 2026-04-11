@@ -22,7 +22,7 @@ source(
 )
 source(
   file.path(
-    "~/palaeochem/R/get_data_wide.r"
+    "Code_R", "run_pls_pipeline.r"
   )
 )
 ```
@@ -30,80 +30,539 @@ source(
 ```{r}
 #| label: load FTIRS pectra
 #| echo: true
-# This workflow consumes the saved artefact.
-ftir_processed <- readRDS(here::here("Data_R", "Palaechem_data_compilation_2026-04-09.rds"))
-```
-
-```{r}
-#| label: extract GH2025 spectra from general dataset
-#| echo: true
 #| warning: false
 
-# restructure and nest spectra
-ftir_spectra_compilation <- ftir_processed |>
-  tidyr::nest(spectra_raw = -c(
-    dataset_name,
-    project,
-    data_collector,
-    location,
-    sample_year,
-    ftir_method,
-    taxon_name
-  )
-  ) |>
-  dplyr::mutate(
-    df_data_raw = purrr::map(
-      .x = spectra_raw,
-      .f = ~get_spectra_matrix_wide(.x)
-    ),
-    matrix_spectra_raw = purrr::map(
-      .x = df_data_raw,
-      .f = ~get_spectra_matrix(.x)
-    ),
-    sample_meta_data = purrr::map(
-        .x = df_data_raw,
-        .f = ~get_sample_meta_data(.x)
-    )
-  ) |>
-  dplyr::select(-spectra_raw)
+#Read raw FTIR spectra
+rawFTIRSpec <- read.csv(file = file.path('Data_R',
+                                         'Original_Spectra.csv'),
+                        row.names = 1)
+colnames(rawFTIRSpec)[-1:-10] <- substring(colnames(rawFTIRSpec)[-1:-10], 2)
+
+rawFTIRSpecSim <- rawFTIRSpec[, c(-1:-2,-4:-10)]
 ```
 
 ## Original FTIR spectra
 
-The original FTIR spectra are between 4000 and 600 cm^-1^, with wavenumber interval of 4 cm^-1^. The original spectral dataset looks like:
+The original FTIR spectra are between 4000 and 600 cm^-1^, with wavenumber interval of 4 cm^-1^. And the raw spectra looks like:
 
 ```{r}
 #| label: Figure full raw spectra
 #| echo: true
 #| warning: false
 
-data_long <- data_to_process$df_data_raw |>
-pivot_longer(
-  dplyr::matches("\\d+"),
-  names_to = "wavenumber",
-  values_to = "absorbance"
-) 
-
 plot_original_spec <-
-data_long |> plot_spectra()
+rawFTIRSpecSim |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
 
 print(plot_original_spec)  
 
 ```
 
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+## Pretreating raw FTIR spectra
 
 ```{r}
-1 + 1
-```
+#| label: prepare for different pretreating methodologies
+#| echo: true
+#| warning: false
 
-You can add options to executable code like this
+#1 - No treatment - only extract wavenumbers
+processing_steps_ftir1 <- list(
+  functions = c(
+    get_savitzkygolay,
+    get_filter_wavenumbers
+
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 0),
+    list(min_wn = 600, max_wn = 3996)
+    
+  )
+)
+
+#2 - MSC
+processing_steps_ftir2 <- list(
+  functions = c(
+    run_msc,
+    get_filter_wavenumbers,
+    get_baseline_offset
+  ),
+  parameters = list(
+    list(),
+    list(min_wn = 600, max_wn = 3996),
+    list()
+  )
+)
+
+#3 - ALS
+processing_steps_ftir3 <- list(
+  functions = c(
+    get_savitzkygolay,
+    run_als_baseline_correction,
+    get_filter_wavenumbers,
+    get_baseline_offset
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 0),
+    list(lambda = 5, p = 0.001),
+    list(min_wn = 600, max_wn = 3996),
+    list()
+  )
+)
+
+#4 - ALS-MSC
+processing_steps_ftir4 <- list(
+  functions = c(
+    get_savitzkygolay,
+    run_als_baseline_correction,
+    get_filter_wavenumbers,
+    run_msc,
+    get_baseline_offset
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 0),
+    list(lambda = 5, p = 0.001),
+    list(min_wn = 600, max_wn = 3996),
+    list(),
+    list()
+  )
+)
+
+#5 - SG-2nd derivative
+processing_steps_ftir5 <- list(
+  functions = c(
+    get_savitzkygolay,
+    get_filter_wavenumbers
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 2),
+    list(min_wn = 600, max_wn = 3996)
+  )
+)
+
+#6 - signature region - MSC
+processing_steps_ftir6 <- list(
+  functions = c(
+    run_msc,
+    get_filter_wavenumbers,
+    get_baseline_offset
+  ),
+  parameters = list(
+    list(),
+    list(min_wn = 800, max_wn = 1800),
+    list()
+  )
+)
+
+#7 - signature region - ALS
+processing_steps_ftir7 <- list(
+  functions = c(
+    get_savitzkygolay,
+    run_als_baseline_correction,
+    get_filter_wavenumbers,
+    get_baseline_offset
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 0),
+    list(lambda = 5, p = 0.001),
+    list(min_wn = 800, max_wn = 1800),
+    list()
+  )
+)
+
+#8 - signature region - ALS-MSC
+processing_steps_ftir8 <- list(
+  functions = c(
+    get_savitzkygolay,
+    run_als_baseline_correction,
+    get_filter_wavenumbers,
+    run_msc,
+    get_baseline_offset
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 0),
+    list(lambda = 5, p = 0.001),
+    list(min_wn = 800, max_wn = 1800),
+    list(),
+    list()
+  )
+)
+
+#9 - signature region - GC-2nd derivative
+processing_steps_ftir9 <- list(
+  functions = c(
+    get_savitzkygolay,
+    get_filter_wavenumbers
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 2),
+    list(min_wn = 800, max_wn = 1800)
+  )
+)
+```
 
 ```{r}
-#| echo: false
-2 * 2
+#| label: pretreat the raw FTIR spectra with different methodologies
+#| echo: true
+#| warning: false
+
+rawFTIRSpecSimMat <- as.matrix(rawFTIRSpecSim[, -1])
+row.names(rawFTIRSpecSimMat) <- rawFTIRSpecSim[, 1]
+data_preprocessed <- list(
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected1 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir1)
+  ),
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected2 = run_preprocessing_list(rawFTIRSpecSimMat, processing_steps_ftir2)
+  ),
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected3 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir3)
+  ),
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected4 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir4)
+  ),
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected5 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir5)
+  ),
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected6 = run_preprocessing_list(rawFTIRSpecSimMat, processing_steps_ftir6)
+  ),
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected7 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir7)
+  ),
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected8 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir8)
+  ),
+  cbind(
+    unique_id = rawFTIRSpecSim[, 1],
+    corrected9 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir9)
+  )
+)
+data_preprocessed <- lapply(data_preprocessed, as.data.frame)
+for (loopI in 1:length(data_preprocessed)) {
+  data_preprocessed[[loopI]][, -1] <-
+    apply(data_preprocessed[[loopI]][, -1], c(1,2), as.numeric)
+}
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+Several methodologies were applied on the raw FTIR spectra to search for better methodologies, including Multiplicative Scattering Correction (MSC), Asymmetric least squares (ALS) baseline correction and 2nd derivative spectra. Smoothing and baseline offset deduction are also applied on raw spectra. Two types of wavenumber ranges were investigated as well - the whole range (600-4000) and signature area only (800-1000).
+
+### The whole range: MSC
+
+```{r}
+#| label: WR MSC
+#| echo: true
+#| warning: false
+
+plot_msc_spec <-
+data_preprocessed[[2]] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
+
+print(plot_msc_spec)  
+```
+
+### The whole range: smoothing + ALS
+
+```{r}
+#| label: WR Smoothing ALS
+#| echo: true
+#| warning: false
+plot_als_spec <-
+data_preprocessed[[3]] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
+
+print(plot_als_spec)  
+```
+
+### The whole range: smoothing + ALS + MSC
+
+```{r}
+#| label: WR Smoothing ALS MSC
+#| echo: true
+#| warning: false
+plot_alsmsc_spec <-
+data_preprocessed[[4]] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
+
+print(plot_alsmsc_spec)
+```
+
+### The whole range: smoothing + 2^nd^ derivative
+
+```{r}
+#| label: WR Smoothing 2nd derivative
+#| echo: true
+#| warning: false
+plot_2nd_spec <-
+data_preprocessed[[5]] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
+
+print(plot_2nd_spec)
+```
+
+### Signature area: MSC
+
+```{r}
+#| label: Sg MSC
+#| echo: true
+#| warning: false
+
+plot_sg_msc_spec <-
+data_preprocessed[[6]] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
+
+print(plot_sg_msc_spec)  
+```
+
+### Signature area: smoothing + ALS
+
+```{r}
+#| label: Sg Smoothing ALS
+#| echo: true
+#| warning: false
+plot_sg_als_spec <-
+data_preprocessed[[7]] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
+
+print(plot_sg_als_spec)  
+```
+
+### Signature area: smoothing + ALS + MSC
+
+```{r}
+#| label: Sg Smoothing ALS MSC
+#| echo: true
+#| warning: false
+plot_sg_alsmsc_spec <-
+data_preprocessed[[8]] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
+
+print(plot_sg_alsmsc_spec)
+```
+
+### Signature area: smoothing + 2^nd^ derivative
+
+```{r}
+#| label: Sg Smoothing 2nd derivative
+#| echo: true
+#| warning: false
+plot_sg_2nd_spec <-
+data_preprocessed[[9]] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+)
+
+print(plot_sg_2nd_spec)
+```
+
+## Input GCMS signals
+
+```{r}
+#| label: read GCMS
+#| echo: true
+#| warning: false
+#GC-MS data on cuttings and pot cultivars
+GCDataRawCut <- as.matrix(read.csv(
+  file.path('Data_R', '04_11_2025_gc_cutting_data_2025.csv'),
+  header = TRUE,
+  row.names = 1))
+GCDataRawCul <- as.matrix(read.csv(
+  file.path('Data_R', '01_07_2025_gc_cultivar_data_2025.csv'),
+  header = TRUE,
+  row.names = 1))
+
+#Combine these two raw datasets, with batch information
+GCData <- rbind(GCDataRawCut[, c(8, 10:14)],
+                cbind(GCDataRawCul[, c(8, 10:12)], 
+                      sampling_number = NA, 
+                      GCDataRawCul[, 13])
+)
+
+#Exclude the last batch (u), as an unexpected crash happened before this
+#batch, making reseult from this batch abnormal
+GCData <- GCData[-which(GCData[, 6] == 'u'),]
+
+#Loop to calculate the mean values for each sample
+uniqueBatchInfo <- unique(GCData[, 2:5])
+
+#Create a matrix to fill in the mean GC-MS signals
+GCDataMean <- matrix(nrow = nrow(uniqueBatchInfo),
+                     ncol = ncol(uniqueBatchInfo) + 2,
+                     dimnames = list(c(),
+                                     c('calibrated',
+                                       'sd',
+                                       colnames(uniqueBatchInfo)
+                                     )
+                     )
+)
+
+#Add batch number to the GCMS data matrix
+GCDataMean[, 3:ncol(GCDataMean)] <- uniqueBatchInfo
+
+#Loop to calculate the mean signals of GCMS duplicates
+for (loopI in 1:nrow(GCDataMean)) {
+  
+  #Check wheter current sample is cutting or pot cultivar 
+  if (is.na(GCDataMean[loopI, 6])) {
+    
+    #Mean and sd for pot cultivar
+    GCDataMean[loopI, 1] <- mean(as.numeric(
+      GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                     (GCData[, 3] == GCDataMean[loopI, 4]) &
+                     (GCData[, 4] == GCDataMean[loopI, 5]) 
+    )
+    , 1])
+    )
+    GCDataMean[loopI, 2] <- sd(as.numeric(
+      GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                     (GCData[, 3] == GCDataMean[loopI, 4]) &
+                     (GCData[, 4] == GCDataMean[loopI, 5])
+    )
+    , 1])
+    )
+    
+  }else {
+    
+    #Mean and sd for cutting
+    GCDataMean[loopI, 1] <- mean(as.numeric(
+      GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                     (GCData[, 3] == GCDataMean[loopI, 4]) &
+                     (GCData[, 4] == GCDataMean[loopI, 5]) &
+                     (GCData[, 5] == GCDataMean[loopI, 6])
+    )
+    , 1])
+    )
+    GCDataMean[loopI, 2] <- sd(as.numeric(
+      GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                     (GCData[, 3] == GCDataMean[loopI, 4]) &
+                     (GCData[, 4] == GCDataMean[loopI, 5]) &
+                     (GCData[, 5] == GCDataMean[loopI, 6])
+    )
+    , 1])
+    )
+    
+  }
+}
+
+#Transfer the matrix back to data frame, and transfer values to number if necessary
+GCDataMean <- as.data.frame(GCDataMean)
+GCDataMean[, 1] <- as.numeric(GCDataMean[, 1])
+
+#Create a vector to stroe the index for batch information matching
+tempInd <- vector('numeric', length = nrow(rawFTIRSpec))
+
+#Loop to match the batch information between GC-MS and FTIR datasets
+for (loopI in 1:nrow(rawFTIRSpec)) {
+
+#Check whether current sample is pot cultivar
+if (rawFTIRSpec[loopI, 5] == 'cul') {
+  
+  #Check whether current FTIR spectrum has any GCMS signal
+  if (any((GCDataMean[, 3] == rawFTIRSpec[loopI, 6]) &
+          (GCDataMean[, 4] == rawFTIRSpec[loopI, 7]) &
+          (GCDataMean[, 5] == rawFTIRSpec[loopI, 8]) &
+          (is.na(GCDataMean[, 6]))
+  )
+  ) {
+    
+    #Record the FTIR matrix row index for current GCMS signal
+    tempInd[loopI] <- which((GCDataMean[, 3] == rawFTIRSpec[loopI, 6]) &
+                              (GCDataMean[, 4] == rawFTIRSpec[loopI, 7]) &
+                              (GCDataMean[, 5] == rawFTIRSpec[loopI, 8]) &
+                              (is.na(GCDataMean[, 6])))
+    
+  }else {
+    
+    #Record nothing if there is no match between current FTIR specrum and
+      #any GCMS signal
+    tempInd[loopI] <- NA
+    
+  }
+  
+#Check whether current sample is cutting
+} else if (rawFTIRSpec[loopI, 5] == 'cut') {
+  
+  #Check whether current FTIR spectrum has any GCMS signal
+  if (any((GCDataMean[, 3] == rawFTIRSpec[loopI, 6]) &
+          (GCDataMean[, 4] == rawFTIRSpec[loopI, 7]) &
+          (GCDataMean[, 5] == rawFTIRSpec[loopI, 8]) &
+          (GCDataMean[, 6] == rawFTIRSpec[loopI, 9])
+  )
+  ) {
+    
+    #Record the FTIR matrix row index for current GCMS signal
+    tempInd[loopI] <- which((GCDataMean[, 3] == rawFTIRSpec[loopI, 6]) &
+                              (GCDataMean[, 4] == rawFTIRSpec[loopI, 7]) &
+                              (GCDataMean[, 5] == rawFTIRSpec[loopI, 8]) &
+                              (GCDataMean[, 6] == rawFTIRSpec[loopI, 9]))
+    
+  }else {
+    
+    #Record nothing if there is no match between current FTIR spectrum and
+      #any GCMS signal
+    tempInd[loopI] <- NA
+    
+  }
+  
+} else {
+  
+  #Record nothing if there is no match between current FTIR spectrum and
+    #any GCMS signal
+  tempInd[loopI] <- NA
+  
+}
+}
+
+#Attach GCMS signals to  peak statistics (height or area)
+pcaMatHeight <- cbind(rawFTIRSpec,
+                    GCDataMean[tempInd, c(1,2)])[, -11:-1772]
+colnames(pcaMatHeight)[11] <- 'pCA_ng_grain'
+
+rm(loopI,
+   tempInd)
+```
+
+## PLS analysis between FTIR spectra and GCMS signals
+
+in this section, the GCMS signals were input into PLS model as response variable, and FTIR spectral signals pretreated by different methodologies were input as independent variables.
+
+## The whole range: raw spectra
+
+```{r}
+#| label: WR Raw
+#| echo: true
+#| warning: false
+pls_raw <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[1]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+plot_pls_raw <- plot_pls_scores(testa)
+
+run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[2]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+```
