@@ -13,16 +13,15 @@ editor: visual
 #| output: false
 #Load palaeochem package
 library(palaeochem)
+#Load arial font into R
+library(showtext)
+font_add(family = "arial", regular = file.path('Packages_R', 'Fonts', 'arial.ttf'))
+showtext_auto()
 
 #Packages needed in Vivian's code
 source(
   file.path(
     "Code_R", "00_Config_file.r"
-  )
-)
-source(
-  file.path(
-    "Code_R", "run_pls_pipeline.r"
   )
 )
 ```
