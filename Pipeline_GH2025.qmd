@@ -644,7 +644,7 @@ plot_raw_scatter <- plot_pls_scatter(plsModel = pls_raw,
 #Coefficients plot
 plot_raw_coefficients <- plot_pls_coefficients(pls_raw,
                                                numComp = numComps_raw,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
                                                           )
                                                )
@@ -652,7 +652,7 @@ plot_raw_coefficients <- plot_pls_coefficients(pls_raw,
 #Loadings plot
 plot_raw_loadings <- plot_pls_loadings(pls_raw,
                                                numComp = 2,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
                                                           )
                                                )
@@ -664,7 +664,7 @@ plot_raw_variances <- plot_pls_variance(pls_raw,
 #Residuals
 plot_raw_residuals <- plot_pls_residuals(pls_raw,
                                                numComp = numComps_raw,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(500, 4000, 500)
                                          )
 ```
 
@@ -696,7 +696,7 @@ plot_msc_scatter <- plot_pls_scatter(plsModel = pls_msc,
 #Coefficients plot
 plot_msc_coefficients <- plot_pls_coefficients(pls_msc,
                                                numComp = numComps_msc,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
                                                           )
                                                )
@@ -704,7 +704,7 @@ plot_msc_coefficients <- plot_pls_coefficients(pls_msc,
 #Loadings plot
 plot_msc_loadings <- plot_pls_loadings(pls_msc,
                                                numComp = 2,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
                                                           )
                                                )
@@ -716,7 +716,7 @@ plot_msc_variances <- plot_pls_variance(pls_msc,
 #Residuals
 plot_msc_residuals <- plot_pls_residuals(pls_msc,
                                                numComp = numComps_msc,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(500, 4000, 500)
                                          )
 ```
 
@@ -748,7 +748,7 @@ plot_als_scatter <- plot_pls_scatter(plsModel = pls_als,
 #Coefficients plot
 plot_als_coefficients <- plot_pls_coefficients(pls_als,
                                                numComp = numComps_als,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
                                                           )
                                                )
@@ -756,7 +756,7 @@ plot_als_coefficients <- plot_pls_coefficients(pls_als,
 #Loadings plot
 plot_als_loadings <- plot_pls_loadings(pls_als,
                                                numComp = 2,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
                                                           )
                                                )
@@ -768,7 +768,7 @@ plot_als_variances <- plot_pls_variance(pls_als,
 #Residuals
 plot_als_residuals <- plot_pls_residuals(pls_als,
                                                numComp = numComps_als,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(500, 4000, 500)
                                          )
 ```
 
@@ -800,7 +800,7 @@ plot_als_msc_scatter <- plot_pls_scatter(plsModel = pls_als_msc,
 #Coefficients plot
 plot_als_msc_coefficients <- plot_pls_coefficients(pls_als_msc,
                                                numComp = numComps_als_msc,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
                                                           )
                                                )
@@ -808,7 +808,7 @@ plot_als_msc_coefficients <- plot_pls_coefficients(pls_als_msc,
 #Loadings plot
 plot_als_msc_loadings <- plot_pls_loadings(pls_als_msc,
                                                numComp = 2,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
                                                           )
                                                )
@@ -820,7 +820,7 @@ plot_als_msc_variances <- plot_pls_variance(pls_als_msc,
 #Residuals
 plot_als_msc_residuals <- plot_pls_residuals(pls_als_msc,
                                                numComp = numComps_als_msc,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(500, 4000, 500)
                                          )
 ```
 
@@ -852,7 +852,7 @@ plot_2nd_scatter <- plot_pls_scatter(plsModel = pls_2nd,
 #Coefficients plot
 plot_2nd_coefficients <- plot_pls_coefficients(pls_2nd,
                                                numComp = numComps_2nd,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
                                                           )
                                                )
@@ -860,7 +860,7 @@ plot_2nd_coefficients <- plot_pls_coefficients(pls_2nd,
 #Loadings plot
 plot_2nd_loadings <- plot_pls_loadings(pls_2nd,
                                                numComp = 1,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
                                                           )
                                                )
@@ -872,7 +872,7 @@ plot_2nd_variances <- plot_pls_variance(pls_2nd,
 #Residuals
 plot_2nd_residuals <- plot_pls_residuals(pls_2nd,
                                                numComp = numComps_2nd,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(500, 4000, 500)
                                          )
 ```
 
