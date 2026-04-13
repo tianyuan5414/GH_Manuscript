@@ -1,7 +1,7 @@
 #' This function create a scatter plot between fitted PLS values and GC-MS signals
 #' 
-  #' @param plsModel an object output from pls::plsr() function
-  #' @param numComp number of component, which will determine the fitted values
+  #' @param plsModel an object output, from pls::plsr() function
+  #' @param numComp single numeric value, number of component, which will determine the fitted values
 
 plot_pls_scatter <- function(plsModel, numComp) {
   plsPlotHeight <- ggplot() + 
@@ -22,11 +22,6 @@ plot_pls_scatter <- function(plsModel, numComp) {
           axis.title.x = element_text(size = 14, family = 'arial'),
           axis.text.x = element_text(size = 12, family = 'arial'),
           panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
-          # axis.line.y = element_blank(),
-          # axis.text.x = element_blank(), 
-          # axis.line.x = element_blank(),
-          # axis.title.x = element_blank(),
-          # axis.ticks.x = element_blank()
     )
   
   return(plsPlotHeight)
