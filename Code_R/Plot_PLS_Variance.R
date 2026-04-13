@@ -3,27 +3,30 @@
 #' 
   #' @param plsModel an object output from pls::plsr() function
   #' @param numComp single numeric value, number of component
-  #' @param wavenumberRange numeric vector with length of 3. The first two values indicate the wavenumber
-    #' range of the plot, and the last value indicate the beak intervals on plot
-plot_pls_variance <- function(plsModel, numComp, wavenumberRange) {
+plot_pls_variance <- function(plsModel, numComp) {
   #Calculate variance explained by different components
   varCompMat <- matrix(nrow = numComp,
-                       ncol = 2,
+                       ncol = 3,
                        dimnames = list(c(),
                                        c('Accu',
-                                         'Partial')))
-  varCompMat[, 1] <- plsModel[[12]][1:numComp]
+                                         'Partial',
+                                         'Incremental')))
+  varCompMat[, 2] <- explvar(plsModel)[1:numComp]
   for (loopI in 1:nrow(varCompMat)) {
-    varCompMat[loopI, 2] <- sum(plsModel[[12]][1:loopI])
+    varCompMat[loopI,1] <- sum(explvar(plsModel)[1:loopI])
+    if (loopI == 1) {
+      varCompMat[loopI, 3] <- 0
+    }else{
+      varCompMat[loopI, 3] <- varCompMat[loopI - 1, 1]
+    }
   }
   
   #Plot variance explained by different components
   modelHeightVar <- ggplot() +
-    geom_bar(aes(x = 1:numComp, y = varCompMat[, 2] / sum(plsModel[[12]])),
+    geom_bar(aes(x = 1:numComp, y = varCompMat[, 1]),
              fill = 'red',
              stat = 'identity') +
-    geom_bar(aes(x = 1:numComp, y = varCompMat[, 2] / sum(plsModel[[12]] )- 
-                   varCompMat[, 1] / sum(plsModel[[12]])),
+    geom_bar(aes(x = 1:numComp, y = varCompMat[, 3]),
              fill = 'grey',
              stat = 'identity') +
     labs(x = 'Component', y = 'Variance explained') +

@@ -11,7 +11,7 @@ plot_pls_loadings <- function(plsModel, numComp, wavenumberRange, peakPos) {
     geom_bar(aes(x = peakPos, y = plsModel$loadings[, numComp]),
              stat = 'identity') +
     geom_hline(yintercept = 0) +
-    scale_x_reverse(limit = wavenumberRange,
+    scale_x_continuous(limit = wavenumberRange[1:2],
                     breaks = seq(wavenumberRange[1],
                                  wavenumberRange[2], 
                                  by = wavenumberRange[3])) +

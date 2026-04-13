@@ -635,7 +635,6 @@ if (file.exists(file.path('Output_R', 'pls_raw.RData'))) {
 #| warning: false
 #Setup the number of components to be analysed
 numComps_raw <- selectNcomp(pls_raw, method = "randomization", plot = FALSE)
-numComps_raw <- 6
 
 #Scatter plot
 plot_raw_scatter <- plot_pls_scatter(plsModel = pls_raw,
@@ -644,7 +643,7 @@ plot_raw_scatter <- plot_pls_scatter(plsModel = pls_raw,
 #Coefficients plot
 plot_raw_coefficients <- plot_pls_coefficients(pls_raw,
                                                numComp = numComps_raw,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
                                                           )
                                                )
@@ -652,7 +651,7 @@ plot_raw_coefficients <- plot_pls_coefficients(pls_raw,
 #Loadings plot
 plot_raw_loadings <- plot_pls_loadings(pls_raw,
                                                numComp = 2,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
                                                           )
                                                )
@@ -664,7 +663,7 @@ plot_raw_variances <- plot_pls_variance(pls_raw,
 #Residuals
 plot_raw_residuals <- plot_pls_residuals(pls_raw,
                                                numComp = numComps_raw,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(600, 4000, 400)
                                          )
 ```
 
@@ -687,7 +686,6 @@ plot_raw_residuals <- plot_pls_residuals(pls_raw,
 #| warning: false
 #Setup the number of components to be analysed
 numComps_msc <- selectNcomp(pls_msc, method = "randomization", plot = FALSE)
-numComps_msc <- 6
 
 #Scatter plot
 plot_msc_scatter <- plot_pls_scatter(plsModel = pls_msc,
@@ -696,7 +694,7 @@ plot_msc_scatter <- plot_pls_scatter(plsModel = pls_msc,
 #Coefficients plot
 plot_msc_coefficients <- plot_pls_coefficients(pls_msc,
                                                numComp = numComps_msc,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
                                                           )
                                                )
@@ -704,7 +702,7 @@ plot_msc_coefficients <- plot_pls_coefficients(pls_msc,
 #Loadings plot
 plot_msc_loadings <- plot_pls_loadings(pls_msc,
                                                numComp = 2,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
                                                           )
                                                )
@@ -716,7 +714,7 @@ plot_msc_variances <- plot_pls_variance(pls_msc,
 #Residuals
 plot_msc_residuals <- plot_pls_residuals(pls_msc,
                                                numComp = numComps_msc,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(600, 4000, 400)
                                          )
 ```
 
@@ -739,7 +737,6 @@ plot_msc_residuals <- plot_pls_residuals(pls_msc,
 #| warning: false
 #Setup the number of components to be analysed
 numComps_als <- selectNcomp(pls_als, method = "randomization", plot = FALSE)
-numComps_als <- 6
 
 #Scatter plot
 plot_als_scatter <- plot_pls_scatter(plsModel = pls_als,
@@ -748,7 +745,7 @@ plot_als_scatter <- plot_pls_scatter(plsModel = pls_als,
 #Coefficients plot
 plot_als_coefficients <- plot_pls_coefficients(pls_als,
                                                numComp = numComps_als,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
                                                           )
                                                )
@@ -756,7 +753,7 @@ plot_als_coefficients <- plot_pls_coefficients(pls_als,
 #Loadings plot
 plot_als_loadings <- plot_pls_loadings(pls_als,
                                                numComp = 2,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
                                                           )
                                                )
@@ -768,7 +765,7 @@ plot_als_variances <- plot_pls_variance(pls_als,
 #Residuals
 plot_als_residuals <- plot_pls_residuals(pls_als,
                                                numComp = numComps_als,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(600, 4000, 400)
                                          )
 ```
 
@@ -791,7 +788,6 @@ plot_als_residuals <- plot_pls_residuals(pls_als,
 #| warning: false
 #Setup the number of components to be analysed
 numComps_als_msc <- selectNcomp(pls_als_msc, method = "randomization", plot = FALSE)
-numComps_als_msc <- 6
 
 #Scatter plot
 plot_als_msc_scatter <- plot_pls_scatter(plsModel = pls_als_msc,
@@ -800,7 +796,7 @@ plot_als_msc_scatter <- plot_pls_scatter(plsModel = pls_als_msc,
 #Coefficients plot
 plot_als_msc_coefficients <- plot_pls_coefficients(pls_als_msc,
                                                numComp = numComps_als_msc,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
                                                           )
                                                )
@@ -808,7 +804,7 @@ plot_als_msc_coefficients <- plot_pls_coefficients(pls_als_msc,
 #Loadings plot
 plot_als_msc_loadings <- plot_pls_loadings(pls_als_msc,
                                                numComp = 2,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
                                                           )
                                                )
@@ -820,7 +816,7 @@ plot_als_msc_variances <- plot_pls_variance(pls_als_msc,
 #Residuals
 plot_als_msc_residuals <- plot_pls_residuals(pls_als_msc,
                                                numComp = numComps_als_msc,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(600, 4000, 400)
                                          )
 ```
 
@@ -843,7 +839,6 @@ plot_als_msc_residuals <- plot_pls_residuals(pls_als_msc,
 #| warning: false
 #Setup the number of components to be analysed
 numComps_2nd <- selectNcomp(pls_2nd, method = "randomization", plot = FALSE)
-numComps_2nd <- 6
 
 #Scatter plot
 plot_2nd_scatter <- plot_pls_scatter(plsModel = pls_2nd,
@@ -852,15 +847,15 @@ plot_2nd_scatter <- plot_pls_scatter(plsModel = pls_2nd,
 #Coefficients plot
 plot_2nd_coefficients <- plot_pls_coefficients(pls_2nd,
                                                numComp = numComps_2nd,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
                                                           )
                                                )
 
 #Loadings plot
 plot_2nd_loadings <- plot_pls_loadings(pls_2nd,
-                                               numComp = 1,
-                                               wavenumberRange = c(600, 4000, 500),
+                                               numComp = 2,
+                                               wavenumberRange = c(600, 4000, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
                                                           )
                                                )
@@ -872,7 +867,7 @@ plot_2nd_variances <- plot_pls_variance(pls_2nd,
 #Residuals
 plot_2nd_residuals <- plot_pls_residuals(pls_2nd,
                                                numComp = numComps_2nd,
-                                               wavenumberRange = c(600, 4000, 500)
+                                               wavenumberRange = c(600, 4000, 400)
                                          )
 ```
 
@@ -895,7 +890,6 @@ plot_2nd_residuals <- plot_pls_residuals(pls_2nd,
 #| warning: false
 #Setup the number of components to be analysed
 numComps_sig_msc <- selectNcomp(pls_sig_msc, method = "randomization", plot = FALSE)
-numComps_sig_msc <- 6
 
 #Scatter plot
 plot_sig_msc_scatter <- plot_pls_scatter(plsModel = pls_sig_msc,
@@ -904,7 +898,7 @@ plot_sig_msc_scatter <- plot_pls_scatter(plsModel = pls_sig_msc,
 #Coefficients plot
 plot_sig_msc_coefficients <- plot_pls_coefficients(pls_sig_msc,
                                                numComp = numComps_sig_msc,
-                                               wavenumberRange = c(800, 1800, 200),
+                                               wavenumberRange = c(800, 1800, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[6]])[-1])
                                                           )
                                                )
@@ -912,7 +906,7 @@ plot_sig_msc_coefficients <- plot_pls_coefficients(pls_sig_msc,
 #Loadings plot
 plot_sig_msc_loadings <- plot_pls_loadings(pls_sig_msc,
                                                numComp = 2,
-                                               wavenumberRange = c(800, 1800, 200),
+                                               wavenumberRange = c(800, 1800, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[6]])[-1])
                                                           )
                                                )
@@ -924,7 +918,7 @@ plot_sig_msc_variances <- plot_pls_variance(pls_sig_msc,
 #Residuals
 plot_sig_msc_residuals <- plot_pls_residuals(pls_sig_msc,
                                                numComp = numComps_sig_msc,
-                                               wavenumberRange = c(800, 1800, 200)
+                                               wavenumberRange = c(800, 1800, 400)
                                          )
 ```
 
@@ -933,14 +927,13 @@ plot_sig_msc_residuals <- plot_pls_residuals(pls_sig_msc,
 #| fig-width: 8
 #| fig-height: 12
 #| fig-dpi: 600
-#| warning: false
 
  (plot_sg_msc_spec | plot_sig_msc_scatter) /
     (plot_sig_msc_variances | plot_sig_msc_coefficients) /
     (plot_sig_msc_loadings | plot_sig_msc_residuals)
 ```
 
-### Signature area: smoothing + ALS
+## Signature area: smoothing + ALS
 
 ```{r}
 #| label: pls - sig als spectra
@@ -948,7 +941,6 @@ plot_sig_msc_residuals <- plot_pls_residuals(pls_sig_msc,
 #| warning: false
 #Setup the number of components to be analysed
 numComps_sig_als <- selectNcomp(pls_sig_als, method = "randomization", plot = FALSE)
-numComps_sig_als <- 6
 
 #Scatter plot
 plot_sig_als_scatter <- plot_pls_scatter(plsModel = pls_sig_als,
@@ -957,7 +949,7 @@ plot_sig_als_scatter <- plot_pls_scatter(plsModel = pls_sig_als,
 #Coefficients plot
 plot_sig_als_coefficients <- plot_pls_coefficients(pls_sig_als,
                                                numComp = numComps_sig_als,
-                                               wavenumberRange = c(800, 1800, 200),
+                                               wavenumberRange = c(800, 1800, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[7]])[-1])
                                                           )
                                                )
@@ -965,7 +957,7 @@ plot_sig_als_coefficients <- plot_pls_coefficients(pls_sig_als,
 #Loadings plot
 plot_sig_als_loadings <- plot_pls_loadings(pls_sig_als,
                                                numComp = 2,
-                                               wavenumberRange = c(800, 1800, 200),
+                                               wavenumberRange = c(800, 1800, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[7]])[-1])
                                                           )
                                                )
@@ -977,7 +969,7 @@ plot_sig_als_variances <- plot_pls_variance(pls_sig_als,
 #Residuals
 plot_sig_als_residuals <- plot_pls_residuals(pls_sig_als,
                                                numComp = numComps_sig_als,
-                                               wavenumberRange = c(800, 1800, 200)
+                                               wavenumberRange = c(800, 1800, 400)
                                          )
 ```
 
@@ -986,14 +978,13 @@ plot_sig_als_residuals <- plot_pls_residuals(pls_sig_als,
 #| fig-width: 8
 #| fig-height: 12
 #| fig-dpi: 600
-#| warning: false
 
  (plot_sg_als_spec | plot_sig_als_scatter) /
     (plot_sig_als_variances | plot_sig_als_coefficients) /
     (plot_sig_als_loadings | plot_sig_als_residuals)
 ```
 
-### Signature area: smoothing + ALS + MSC
+## Signature area: smoothing + ALS + MSC
 
 ```{r}
 #| label: pls - sig als msc spectra
@@ -1001,7 +992,6 @@ plot_sig_als_residuals <- plot_pls_residuals(pls_sig_als,
 #| warning: false
 #Setup the number of components to be analysed
 numComps_sig_als_msc <- selectNcomp(pls_sig_als_msc, method = "randomization", plot = FALSE)
-numComps_sig_als_msc <- 6
 
 #Scatter plot
 plot_sig_als_msc_scatter <- plot_pls_scatter(plsModel = pls_sig_als_msc,
@@ -1010,7 +1000,7 @@ plot_sig_als_msc_scatter <- plot_pls_scatter(plsModel = pls_sig_als_msc,
 #Coefficients plot
 plot_sig_als_msc_coefficients <- plot_pls_coefficients(pls_sig_als_msc,
                                                numComp = numComps_sig_als_msc,
-                                               wavenumberRange = c(800, 1800, 200),
+                                               wavenumberRange = c(800, 1800, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[8]])[-1])
                                                           )
                                                )
@@ -1018,7 +1008,7 @@ plot_sig_als_msc_coefficients <- plot_pls_coefficients(pls_sig_als_msc,
 #Loadings plot
 plot_sig_als_msc_loadings <- plot_pls_loadings(pls_sig_als_msc,
                                                numComp = 2,
-                                               wavenumberRange = c(800, 1800, 200),
+                                               wavenumberRange = c(800, 1800, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[8]])[-1])
                                                           )
                                                )
@@ -1030,7 +1020,7 @@ plot_sig_als_msc_variances <- plot_pls_variance(pls_sig_als_msc,
 #Residuals
 plot_sig_als_msc_residuals <- plot_pls_residuals(pls_sig_als_msc,
                                                numComp = numComps_sig_als_msc,
-                                               wavenumberRange = c(800, 1800, 200)
+                                               wavenumberRange = c(800, 1800, 400)
                                          )
 ```
 
@@ -1039,14 +1029,13 @@ plot_sig_als_msc_residuals <- plot_pls_residuals(pls_sig_als_msc,
 #| fig-width: 8
 #| fig-height: 12
 #| fig-dpi: 600
-#| warning: false
 
  (plot_sg_alsmsc_spec | plot_sig_als_msc_scatter) /
     (plot_sig_als_msc_variances | plot_sig_als_msc_coefficients) /
     (plot_sig_als_msc_loadings | plot_sig_als_msc_residuals)
 ```
 
-### Signature area: smoothing + 2^nd^ derivative
+## Signature area: smoothing + 2^nd^ derivative
 
 ```{r}
 #| label: pls - sig 2nd derivative spectra
@@ -1054,7 +1043,6 @@ plot_sig_als_msc_residuals <- plot_pls_residuals(pls_sig_als_msc,
 #| warning: false
 #Setup the number of components to be analysed
 numComps_sig_2nd <- selectNcomp(pls_sig_2nd, method = "randomization", plot = FALSE)
-numComps_sig_2nd <- 6
 
 #Scatter plot
 plot_sig_2nd_scatter <- plot_pls_scatter(plsModel = pls_sig_2nd,
@@ -1063,7 +1051,7 @@ plot_sig_2nd_scatter <- plot_pls_scatter(plsModel = pls_sig_2nd,
 #Coefficients plot
 plot_sig_2nd_coefficients <- plot_pls_coefficients(pls_sig_2nd,
                                                numComp = numComps_sig_2nd,
-                                               wavenumberRange = c(800, 1800, 200),
+                                               wavenumberRange = c(800, 1800, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[9]])[-1])
                                                           )
                                                )
@@ -1071,7 +1059,7 @@ plot_sig_2nd_coefficients <- plot_pls_coefficients(pls_sig_2nd,
 #Loadings plot
 plot_sig_2nd_loadings <- plot_pls_loadings(pls_sig_2nd,
                                                numComp = 2,
-                                               wavenumberRange = c(800, 1800, 200),
+                                               wavenumberRange = c(800, 1800, 400),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[9]])[-1])
                                                           )
                                                )
@@ -1083,7 +1071,7 @@ plot_sig_2nd_variances <- plot_pls_variance(pls_sig_2nd,
 #Residuals
 plot_sig_2nd_residuals <- plot_pls_residuals(pls_sig_2nd,
                                                numComp = numComps_sig_2nd,
-                                               wavenumberRange = c(800, 1800, 200)
+                                               wavenumberRange = c(800, 1800, 400)
                                          )
 ```
 
@@ -1092,9 +1080,9 @@ plot_sig_2nd_residuals <- plot_pls_residuals(pls_sig_2nd,
 #| fig-width: 8
 #| fig-height: 12
 #| fig-dpi: 600
-#| warning: false
 
  (plot_sg_2nd_spec | plot_sig_2nd_scatter) /
     (plot_sig_2nd_variances | plot_sig_2nd_coefficients) /
     (plot_sig_2nd_loadings | plot_sig_2nd_residuals)
 ```
+
