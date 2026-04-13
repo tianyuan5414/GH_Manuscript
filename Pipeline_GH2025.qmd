@@ -551,17 +551,51 @@ in this section, the GCMS signals were input into PLS model as response variable
 ## The whole range: raw spectra
 
 ```{r}
-#| label: WR Raw
+#| label: run PLS
 #| echo: true
 #| warning: false
 pls_raw <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                   data_preprocessed[[1]][, -1],
                   pCA_ng_grain = pcaMatHeight[, 11]),
                  pred_col = 'pCA_ng_grain')
-plot_pls_raw <- plot_pls_scores(testa)
 
-run_pls_mod(cbind(pcaMatHeight[,1:10],
+pls_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                   data_preprocessed[[2]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+
+pls_als <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[3]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+
+pls_als_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[4]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+
+pls_2nd <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[5]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+
+pls_sig_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[6]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+
+pls_sig_als <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[7]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+
+pls_sig_als_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[8]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11]),
+                 pred_col = 'pCA_ng_grain')
+
+pls_sig_2nd <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[9]][, -1],
                   pCA_ng_grain = pcaMatHeight[, 11]),
                  pred_col = 'pCA_ng_grain')
 ```
