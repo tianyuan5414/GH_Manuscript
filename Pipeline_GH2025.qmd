@@ -554,48 +554,75 @@ in this section, the GCMS signals were input into PLS model as response variable
 #| label: run PLS
 #| echo: true
 #| warning: false
-pls_raw <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+
+#Check whetether there is already a RData file containing the PLS model, skip the lines generating the PLS model and read the archives driectly if true
+if (file.exists(file.path('Output_R', 'pls_raw.RData'))) {
+  load(file.path('Output_R', 'pls_raw.RData'))
+  load(file.path('Output_R', 'pls_msc.RData'))
+  load(file.path('Output_R', 'pls_als.RData'))
+  load(file.path('Output_R', 'pls_als_msc.RData'))
+  load(file.path('Output_R', 'pls_2nd.RData'))
+  load(file.path('Output_R', 'pls_sig_msc.RData'))
+  load(file.path('Output_R', 'pls_sig_als.RData'))
+  load(file.path('Output_R', 'pls_sig_als_msc.RData'))
+  load(file.path('Output_R', 'pls_sig_2nd.RData'))
+}else {
+  pls_raw <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                   data_preprocessed[[1]][, -1],
                   pCA_ng_grain = pcaMatHeight[, 11]),
                  pred_col = 'pCA_ng_grain')
 
-pls_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                  data_preprocessed[[2]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
-                 pred_col = 'pCA_ng_grain')
+  pls_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[2]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11]),
+                   pred_col = 'pCA_ng_grain')
+  
+  pls_als <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[3]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11]),
+                   pred_col = 'pCA_ng_grain')
+  
+  pls_als_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[4]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11]),
+                   pred_col = 'pCA_ng_grain')
+  
+  pls_2nd <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[5]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11]),
+                   pred_col = 'pCA_ng_grain')
+  
+  pls_sig_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[6]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11]),
+                   pred_col = 'pCA_ng_grain')
+  
+  pls_sig_als <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[7]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11]),
+                   pred_col = 'pCA_ng_grain')
+  
+  pls_sig_als_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[8]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11]),
+                   pred_col = 'pCA_ng_grain')
+  
+  pls_sig_2nd <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[9]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11]),
+                   pred_col = 'pCA_ng_grain')
+  
+  #Save the pls results as .RData indepecdently (so that they do not exceed the 100 MB limitation from GitHub)
+  save(pls_raw,file = file.path('Output_R', 'pls_raw.RData'))
+  save(pls_msc, file = file.path('Output_R', 'pls_msc.RData'))
+  save(pls_als, file = file.path('Output_R', 'pls_als.RData'))
+  save(pls_als_msc, file = file.path('Output_R', 'pls_als_msc.RData'))
+  save(pls_2nd, file = file.path('Output_R', 'pls_2nd.RData'))
+  save(pls_sig_msc, file = file.path('Output_R', 'pls_sig_msc.RData'))
+  save(pls_sig_als, file = file.path('Output_R', 'pls_sig_als.RData'))
+  save(pls_sig_als_msc, file = file.path('Output_R', 'pls_sig_als_msc.RData'))
+  save(pls_sig_2nd, file = file.path('Output_R', 'pls_sig_2nd.RData'))
+}
 
-pls_als <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                  data_preprocessed[[3]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
-                 pred_col = 'pCA_ng_grain')
 
-pls_als_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                  data_preprocessed[[4]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
-                 pred_col = 'pCA_ng_grain')
-
-pls_2nd <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                  data_preprocessed[[5]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
-                 pred_col = 'pCA_ng_grain')
-
-pls_sig_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                  data_preprocessed[[6]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
-                 pred_col = 'pCA_ng_grain')
-
-pls_sig_als <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                  data_preprocessed[[7]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
-                 pred_col = 'pCA_ng_grain')
-
-pls_sig_als_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                  data_preprocessed[[8]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
-                 pred_col = 'pCA_ng_grain')
-
-pls_sig_2nd <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                  data_preprocessed[[9]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
-                 pred_col = 'pCA_ng_grain')
 ```
