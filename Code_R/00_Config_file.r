@@ -41,7 +41,8 @@ package_list <- list(
   "emmeans",
   "patchwork",
   "ggdist",
-  "viridisLite"
+  "viridisLite",
+  "RColorBrewer"
 )
 
 
@@ -85,6 +86,9 @@ source(here::here("Code_R", "Plot_PLS_Loadings.r"))
 source(here::here("Code_R", "Plot_PLS_Variance.r"))
 source(here::here("Code_R", "Plot_PLS_Residual.r"))
 source(here::here("Code_R", "PLS_Experssion.r"))
+source(here::here("Code_R", "Matrix_Malformation.r"))
+source(here::here("Code_R", "Plot_Box.r"))
+source(here::here("Code_R", "Plot_Box_Plant.r"))
 #-----------------------------------------------------------
 # 4. Interactive-only: ggplot theme
 #-----------------------------------------------------------

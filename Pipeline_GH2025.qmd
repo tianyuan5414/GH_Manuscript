@@ -9,7 +9,7 @@ editor: visual
 
 ```{r}
 #| label: load Packages
-#| echo: true
+#| echo: false
 #| output: false
 #Load palaeochem package
 library(palaeochem)
@@ -381,7 +381,7 @@ print(plot_sg_2nd_spec)
 
 ```{r}
 #| label: read GCMS
-#| echo: true
+#| echo: false
 #| warning: false
 #GC-MS data on cuttings and pot cultivars
 GCDataRawCut <- as.matrix(read.csv(
@@ -550,7 +550,7 @@ In this section, the GCMS signals were input into PLS model as response variable
 
 ```{r}
 #| label: run PLS
-#| echo: true
+#| echo: false
 #| warning: false
 
 #Check whetether there is already a RData file containing the PLS model, skip the lines generating the PLS model and read the archives driectly if true
@@ -625,17 +625,14 @@ if (file.exists(file.path('Output_R', 'pls_raw.RData'))) {
 
 ```
 
-## The whole range: raw spectra
-
 ### Original spectra
 
 ```{r}
 #| label: pls - raw spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_raw <- selectNcomp(pls_raw, method = "randomization", plot = FALSE)
-numComps_raw <- 6
+numComps_raw <- pick_1se_comp(pls_raw)[[1]]
 
 #Scatter plot
 plot_raw_scatter <- plot_pls_scatter(plsModel = pls_raw,
@@ -683,11 +680,10 @@ plot_raw_residuals <- plot_pls_residuals(pls_raw,
 
 ```{r}
 #| label: pls - msc spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_msc <- selectNcomp(pls_msc, method = "randomization", plot = FALSE)
-numComps_msc <- 6
+numComps_msc <- pick_1se_comp(pls_msc)[[1]]
 
 #Scatter plot
 plot_msc_scatter <- plot_pls_scatter(plsModel = pls_msc,
@@ -735,11 +731,10 @@ plot_msc_residuals <- plot_pls_residuals(pls_msc,
 
 ```{r}
 #| label: pls - als spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_als <- selectNcomp(pls_als, method = "randomization", plot = FALSE)
-numComps_als <- 6
+numComps_als <- pick_1se_comp(pls_als)[[1]]
 
 #Scatter plot
 plot_als_scatter <- plot_pls_scatter(plsModel = pls_als,
@@ -787,11 +782,10 @@ plot_als_residuals <- plot_pls_residuals(pls_als,
 
 ```{r}
 #| label: pls - als msc spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_als_msc <- selectNcomp(pls_als_msc, method = "randomization", plot = FALSE)
-numComps_als_msc <- 6
+numComps_als_msc <- pick_1se_comp(pls_als_msc)[[1]]
 
 #Scatter plot
 plot_als_msc_scatter <- plot_pls_scatter(plsModel = pls_als_msc,
@@ -839,11 +833,10 @@ plot_als_msc_residuals <- plot_pls_residuals(pls_als_msc,
 
 ```{r}
 #| label: pls - 2nd derivative spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_2nd <- selectNcomp(pls_2nd, method = "randomization", plot = FALSE)
-numComps_2nd <- 6
+numComps_2nd <- pick_1se_comp(pls_2nd)[[1]]
 
 #Scatter plot
 plot_2nd_scatter <- plot_pls_scatter(plsModel = pls_2nd,
@@ -859,7 +852,7 @@ plot_2nd_coefficients <- plot_pls_coefficients(pls_2nd,
 
 #Loadings plot
 plot_2nd_loadings <- plot_pls_loadings(pls_2nd,
-                                               numComp = 1,
+                                               numComp = 3,
                                                wavenumberRange = c(500, 4000, 500),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
                                                           )
@@ -891,11 +884,10 @@ plot_2nd_residuals <- plot_pls_residuals(pls_2nd,
 
 ```{r}
 #| label: pls - sig msc spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_sig_msc <- selectNcomp(pls_sig_msc, method = "randomization", plot = FALSE)
-numComps_sig_msc <- 6
+numComps_sig_msc <- pick_1se_comp(pls_sig_msc)[[1]]
 
 #Scatter plot
 plot_sig_msc_scatter <- plot_pls_scatter(plsModel = pls_sig_msc,
@@ -944,11 +936,10 @@ plot_sig_msc_residuals <- plot_pls_residuals(pls_sig_msc,
 
 ```{r}
 #| label: pls - sig als spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_sig_als <- selectNcomp(pls_sig_als, method = "randomization", plot = FALSE)
-numComps_sig_als <- 6
+numComps_sig_als <- pick_1se_comp(pls_sig_als)[[1]]
 
 #Scatter plot
 plot_sig_als_scatter <- plot_pls_scatter(plsModel = pls_sig_als,
@@ -997,11 +988,10 @@ plot_sig_als_residuals <- plot_pls_residuals(pls_sig_als,
 
 ```{r}
 #| label: pls - sig als msc spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_sig_als_msc <- selectNcomp(pls_sig_als_msc, method = "randomization", plot = FALSE)
-numComps_sig_als_msc <- 6
+numComps_sig_als_msc <- pick_1se_comp(pls_sig_als_msc)[[1]]
 
 #Scatter plot
 plot_sig_als_msc_scatter <- plot_pls_scatter(plsModel = pls_sig_als_msc,
@@ -1050,11 +1040,10 @@ plot_sig_als_msc_residuals <- plot_pls_residuals(pls_sig_als_msc,
 
 ```{r}
 #| label: pls - sig 2nd derivative spectra
-#| echo: true
+#| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_sig_2nd <- selectNcomp(pls_sig_2nd, method = "randomization", plot = FALSE)
-numComps_sig_2nd <- 6
+numComps_sig_2nd <- pick_1se_comp(pls_sig_2nd)[[1]]
 
 #Scatter plot
 plot_sig_2nd_scatter <- plot_pls_scatter(plsModel = pls_sig_2nd,
@@ -1070,7 +1059,7 @@ plot_sig_2nd_coefficients <- plot_pls_coefficients(pls_sig_2nd,
 
 #Loadings plot
 plot_sig_2nd_loadings <- plot_pls_loadings(pls_sig_2nd,
-                                               numComp = 2,
+                                               numComp = 3,
                                                wavenumberRange = c(800, 1800, 200),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[9]])[-1])
                                                           )
@@ -1097,4 +1086,459 @@ plot_sig_2nd_residuals <- plot_pls_residuals(pls_sig_2nd,
  (plot_sg_2nd_spec | plot_sig_2nd_scatter) /
     (plot_sig_2nd_variances | plot_sig_2nd_coefficients) /
     (plot_sig_2nd_loadings | plot_sig_2nd_residuals)
+```
+
+```{r}
+#| label: combine malformation data with PLS and GCMS
+#| echo: false
+#| warning: false
+#Read the cutting branch data, and replace all na with 0
+cuttingsRaw <- read.csv(file = 
+                          file.path('Data_R', 
+                                    'Malformations_Cuttings.csv'),
+                        row.names = 1)
+
+#Replace all NAs with 0
+cuttingsRaw[is.na(cuttingsRaw)] <- 0
+
+#Extract the batch information
+batchInfoTemp <- strsplit(x = cuttingsRaw[,1], split = '_')
+cuttingsBatchInfo <- cbind(rep('Cuttings', length(batchInfoTemp)),
+                           rep('2025', length(batchInfoTemp)),
+                           matrix(unlist(batchInfoTemp), ncol = 4, byrow = TRUE))
+colnames(cuttingsBatchInfo) <- c('Sample', 'Year', 'Frame', 'Treatment',
+                                 'Plant', 'Duplicate')
+
+#Delete unused variables
+rm(batchInfoTemp)
+
+#Read the cultivar branch data, and replace all na with 0
+cultivarsRaw <- read.csv(file = 
+                           file.path('Data_R', 
+                                     'Malformations_Cultivars.csv'),
+                         row.names = 1)
+
+#Replace all NAs with 0
+cultivarsRaw[is.na(cultivarsRaw)] <- 0
+
+#Extract the batch information
+batchInfoTemp <- strsplit(x = cultivarsRaw[,1], split = '_')
+cultivarsBatchInfo <- cbind(rep('Cultivars', length(batchInfoTemp)),
+                            matrix(unlist(batchInfoTemp), ncol = 4, byrow = TRUE))
+colnames(cultivarsBatchInfo) <- c('Sample', 'Year', 'Frame', 'Treatment',
+                                  'Plant')
+
+#Delete unused variables
+rm(batchInfoTemp)
+
+#Combine counting results in duplicated samples, by summing them up
+tempVec <- unique(cultivarsRaw[, 1])
+
+#Matrix for all malformation data
+tempMat <- matrix(nrow = length(tempVec),
+                  ncol = ncol(cultivarsRaw),
+                  dimnames = list(c(),
+                                  colnames(cultivarsRaw)))
+
+#Matrix for all batch information on malformation data
+tempMat2 <- matrix(nrow = length(tempVec),
+                   ncol = ncol(cultivarsBatchInfo),
+                   dimnames = list(c(),
+                                   colnames(cultivarsBatchInfo)))
+
+#Fill sample label into matrix
+tempMat[, 1] <- tempVec
+
+#Loop to add duplicates together
+for (loopI in 1:nrow(tempMat)) {
+  
+  #Check  if there are duplicates in current sample
+  if (length(which(cultivarsRaw[, 1] == tempMat[loopI, 1])) > 1) {
+    
+    #Sum up all counting results among duplicates
+    tempMat[loopI, 2:ncol(tempMat)] <- apply(cultivarsRaw[
+      which(cultivarsRaw[, 1] == tempMat[loopI, 1]), 
+      2:ncol(tempMat)
+    ], 2, sum)
+    
+  }else{
+    
+    #Transfer couting results into matrix
+    tempMat[loopI, 2:ncol(tempMat)] <- cultivarsRaw[
+      which(cultivarsRaw[, 1] == tempMat[loopI, 1]), 2:ncol(tempMat)
+    ]
+    
+  }
+  
+  #Record the corresponding batch information
+  tempMat2[loopI,] <- cultivarsBatchInfo[which(cultivarsRaw[, 1] == tempMat[loopI, 1])[1],]
+  
+}
+
+#Combine batch information with counting results
+cultivarsCom <- cbind(tempMat2, tempMat[, -1])
+
+rm(loopI,
+   tempMat,
+   tempMat2,
+   tempVec)
+
+#Combine malformation data with PLS fitted results from different pretreatment methodologies
+data_preprocessed_ftir_gcms_malformation <- vector(mode = 'list',
+                                                   length = length(data_preprocessed))
+
+#Whole range Raw spectra
+data_preprocessed_ftir_gcms_malformation[[1]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_raw$fitted.values[,, numComps_raw],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+
+#Whole range MSC spectra
+data_preprocessed_ftir_gcms_malformation[[2]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_msc$fitted.values[,, numComps_msc],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+
+#Whole range ALS spectra
+data_preprocessed_ftir_gcms_malformation[[3]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_als$fitted.values[,, numComps_als],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+
+#Whole range ALS-MSC spectra
+data_preprocessed_ftir_gcms_malformation[[4]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_als_msc$fitted.values[,, numComps_als_msc],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+
+#Whole range 2nd derivative spectra
+data_preprocessed_ftir_gcms_malformation[[5]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_2nd$fitted.values[,, numComps_2nd],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+
+#Signature area MSC spectra
+data_preprocessed_ftir_gcms_malformation[[6]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_sig_msc$fitted.values[,, numComps_sig_msc],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+
+#Signature area ALS spectra
+data_preprocessed_ftir_gcms_malformation[[7]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_sig_als$fitted.values[,, numComps_sig_als],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+
+#Signature area ALS-MSC spectra
+data_preprocessed_ftir_gcms_malformation[[8]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_sig_als_msc$fitted.values[,, numComps_sig_als_msc],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+
+#Signature area 2nd derivative spectra
+data_preprocessed_ftir_gcms_malformation[[9]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = pls_sig_2nd$fitted.values[,, numComps_sig_2nd],
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+```
+
+## Overviews on GC-MS signals and FTIR PLS fitted values
+
+```{r}
+#| label: preperation on presenting GC-MS and FTIR data
+#| echo: false
+#| warning: false
+
+#Overall plot on PLS fitted values
+plot_PLS_Fitted <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_PLS_Fitted)) {
+  plot_PLS_Fitted[[loopI]] <- plot_box(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'PLS')
+}
+
+#Plot groupped by potted cultivars and branch cuttings
+plot_PLS_Fitted_Materials <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_PLS_Fitted)) {
+  plot_PLS_Fitted_Materials[[loopI]] <- plot_box(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'PLS',
+                                       groupName = TRUE)
+}
+
+#Overall plot on GCMS signals
+plot_GCMS <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_GCMS)) {
+  plot_GCMS[[loopI]] <- plot_box(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'GCMS')
+}
+
+#Plot groupped by potted cultivars and branch cuttings
+plot_GCMS_Materials <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_GCMS_Materials)) {
+  plot_GCMS_Materials[[loopI]] <- plot_box(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'GCMS',
+                                       groupName = TRUE)
+}
+
+#Plant-groupped PLS fitted values
+plot_PLS_Fitted_Plant <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_PLS_Fitted_Plant)) {
+  plot_PLS_Fitted_Plant[[loopI]] <- plot_box_plant(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'PLS')
+}
+
+#Plant-groupped GCMS signals
+plot_GCMS_Plant <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_GCMS_Plant)) {
+  plot_GCMS_Plant[[loopI]] <- plot_box_plant(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[2]],
+                                       variableName = 'GCMS')
+}
+
+```
+
+### Original spectra
+
+```{r}
+#| label: overview on GCMS and FTIR - raw spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[1]]|plot_PLS_Fitted[[1]]) /
+  (plot_GCMS_Materials[[1]]|plot_PLS_Fitted_Materials[[1]]) /
+  (plot_GCMS_Plant[[1]]|plot_PLS_Fitted_Plant[[1]])
+```
+
+### The whole range: MSC
+
+```{r}
+#| label: overview on GCMS and FTIR - msc spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[2]]|plot_PLS_Fitted[[2]]) /
+  (plot_GCMS_Materials[[2]]|plot_PLS_Fitted_Materials[[2]]) /
+  (plot_GCMS_Plant[[2]]|plot_PLS_Fitted_Plant[[2]])
+```
+
+### The whole range: smoothing + ALS
+
+```{r}
+#| label: overview on GCMS and FTIR - als spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[3]]|plot_PLS_Fitted[[3]]) /
+  (plot_GCMS_Materials[[3]]|plot_PLS_Fitted_Materials[[3]]) /
+  (plot_GCMS_Plant[[3]]|plot_PLS_Fitted_Plant[[3]])
+```
+
+### The whole range: smoothing + ALS + MSC
+
+```{r}
+#| label: overview on GCMS and FTIR - als msc spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[4]]|plot_PLS_Fitted[[4]]) /
+  (plot_GCMS_Materials[[4]]|plot_PLS_Fitted_Materials[[4]]) /
+  (plot_GCMS_Plant[[4]]|plot_PLS_Fitted_Plant[[4]])
+```
+
+### The whole range: smoothing + 2^nd^ derivative
+
+```{r}
+#| label: overview on GCMS and FTIR - 2nd derivative spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[5]]|plot_PLS_Fitted[[5]]) /
+  (plot_GCMS_Materials[[5]]|plot_PLS_Fitted_Materials[[5]]) /
+  (plot_GCMS_Plant[[5]]|plot_PLS_Fitted_Plant[[5]])
+```
+
+### Signature area: MSC
+
+```{r}
+#| label: overview on GCMS and FTIR - sig msc spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[6]]|plot_PLS_Fitted[[6]]) /
+  (plot_GCMS_Materials[[6]]|plot_PLS_Fitted_Materials[[6]]) /
+  (plot_GCMS_Plant[[6]]|plot_PLS_Fitted_Plant[[6]])
+```
+
+### Signature area: smoothing + ALS
+
+```{r}
+#| label: overview on GCMS and FTIR - sig als spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[7]]|plot_PLS_Fitted[[7]]) /
+  (plot_GCMS_Materials[[7]]|plot_PLS_Fitted_Materials[[7]]) /
+  (plot_GCMS_Plant[[7]]|plot_PLS_Fitted_Plant[[7]])
+```
+
+### Signature area: smoothing + ALS + MSC
+
+```{r}
+#| label: overview on GCMS and FTIR - sig als msc spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[8]]|plot_PLS_Fitted[[8]]) /
+  (plot_GCMS_Materials[[8]]|plot_PLS_Fitted_Materials[[8]]) /
+  (plot_GCMS_Plant[[8]]|plot_PLS_Fitted_Plant[[8]])
+```
+
+### Signature area: smoothing + 2^nd^ derivative
+
+```{r}
+#| label: overview on GCMS and FTIR - sig 2nd derivative spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| warning: false
+
+(plot_GCMS[[9]]|plot_PLS_Fitted[[9]]) /
+  (plot_GCMS_Materials[[9]]|plot_PLS_Fitted_Materials[[9]]) /
+  (plot_GCMS_Plant[[9]]|plot_PLS_Fitted_Plant[[9]])
+```
+
+## Malformation rates of pollen grains
+
+```{r}
+#| label: preperation on malformation plotting
+#| echo: false
+#| warning: false
+#Calculate malformation rates in pot cultivars
+tempVec <- (cultivarsRaw[, 15] - cultivarsRaw[, 2])/ cultivarsRaw[, 2]
+cultivarMean <- vector(length = 4)
+cultivarMean[1] <- mean(tempVec[which(cultivarsBatchInfo[, 4] == 'UV')])
+cultivarMean[2] <- sd(tempVec[which(cultivarsBatchInfo[, 4] == 'UV')])
+cultivarMean[3] <- mean(tempVec[which(cultivarsBatchInfo[, 4] == 'CON')])
+cultivarMean[4] <- sd(tempVec[which(cultivarsBatchInfo[, 4] == 'CON')])
+
+#Point plot to compare ratios between con and uv treatment, on different plants
+cuttingsPlantsPlot <-
+  ggplot() +
+  geom_point(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
+             aes(x = CON_Mal, y = UV_Mal, col = Plant)) +
+  geom_point(aes(x = cultivarMean[3] , y = cultivarMean[1], 
+                 color = 'Cultivars')) +
+  geom_errorbar(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
+                aes(x = CON_Mal, y = UV_Mal, col = Plant,
+                    ymin = UV_Mal - UV_Mal_sd,
+                    ymax = UV_Mal + UV_Mal_sd),
+                linewidth = 1,
+                width = 0.01) +
+  geom_errorbar(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
+                aes(x = CON_Mal, y = UV_Mal, col = Plant,
+                    xmin = CON_Mal - CON_Mal_sd,
+                    xmax = CON_Mal + CON_Mal_sd),
+                linewidth = 1,
+                width = 0.01,
+                orientation = 'y') +
+  geom_errorbar(aes(x = cultivarMean[3] , y = cultivarMean[1], color = 'Cultivars',
+                    ymin = cultivarMean[1] - cultivarMean[2],
+                    ymax = cultivarMean[1] + cultivarMean[2]),
+                linewidth = 1,
+                width = 0.005) +
+  geom_errorbar(aes(x = cultivarMean[3] , y = cultivarMean[1], color = 'Cultivars',
+                    xmin = cultivarMean[3] - cultivarMean[4],
+                    xmax = cultivarMean[3] + cultivarMean[4]),
+                linewidth = 1,
+                width = 0.005,
+                orientation = 'y') +
+  geom_abline (slope=1, linetype = "dashed", color="grey") +
+  scale_x_continuous(limits = c(-0.05, 0.15), name = 'CON malformation percentage',
+                     breaks = seq(0, 0.15, by = 0.05)) +
+  scale_y_continuous(limits = c(-0.05, 0.25), name = 'UV malformation percentage',
+                     breaks = seq(0, 0.25, by = 0.05)) +
+  scale_color_manual(name = 'Plant',
+                     values = c('1' = brewer.pal(6, 'Set2')[1],
+                                '2' = brewer.pal(6, 'Set2')[2],
+                                '3' = brewer.pal(6, 'Set2')[3],
+                                '4' = brewer.pal(6, 'Set2')[4],
+                                '5' = brewer.pal(6, 'Set2')[5],
+                                '6' = brewer.pal(6, 'Set2')[6],
+                                'Cultivars' = 'black')) +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    axis.title.x = element_text(size = 20, family = 'arial'),
+    axis.text.x = element_text(size = 16, family = 'arial'),
+    
+    axis.text.y = element_text(size = 20, family = 'arial'),
+    axis.title.y = element_text(size = 16, family = 'arial'),
+    legend.position = "inside",
+    legend.position.inside = c(0.8, 0.2),
+    legend.text = element_text(size = 14, family = 'arial')
+  )
+
+rm(tempVec)
+```
+
+```{r}
+#| label: malformation - figure
+#| fig-width: 8
+#| fig-height: 8
+#| fig-dpi: 600
+#| warning: false
+cuttingsPlantsPlot
 ```
