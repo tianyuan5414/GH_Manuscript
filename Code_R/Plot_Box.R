@@ -15,7 +15,8 @@ plot_box <- function(dataMat,
     plot_output <- ggplot(dataMat, 
                           aes(y = dataMat[[variableName]],
                               x = Treatment)) +
-      geom_boxplot(outliers = FALSE) +
+      geom_boxplot(outlier.shape = NA,
+                   coef = Inf) +
       geom_jitter(aes(color = Materials), shape=16, position=position_jitter(0.2)) +
       labs(y = yLabel) +
       scale_color_manual(values = c('cul' = 'red', 'cut' = 'blue'),
@@ -34,7 +35,8 @@ plot_box <- function(dataMat,
                             aes(y = dataMat[[variableName]],
                               x = Treatment,
                               fill = Materials)) +
-      geom_boxplot(outliers = FALSE) +
+      geom_boxplot(outlier.shape = NA,
+                   coef = Inf) +
       geom_jitter(aes(fill = Materials), shape=21, position=position_jitterdodge(0.2),
                   color = 'black',
                   stroke = 1,

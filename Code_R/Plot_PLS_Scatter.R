@@ -10,9 +10,8 @@ plot_pls_scatter <- function(plsModel, numComp) {
     geom_smooth(aes(x = plsModel$fitted.values[,,numComp],
                     y = plsModel$model$Y_train),
                 method = "lm") +
-    geom_text(
-      aes(x = 0.35, y = 0.7,
-          label = lm_eqn2(numComp, plsModel)), parse = TRUE) +
+    annotate("text", x = -Inf, y = Inf, 
+             label = lm_eqn2(numComp, plsModel), hjust = 0, vjust = 1, parse = TRUE) +
     labs(x = 'PLS fitted values (peak height)',
          y = 'GC-MS (ng/150gr)') + 
     theme_classic() + 

@@ -11,6 +11,8 @@ editor: visual
 #| label: load Packages
 #| echo: false
 #| output: false
+#| warning: false
+#| message: false
 #Load palaeochem package
 library(palaeochem)
 #Load arial font into R
@@ -36,26 +38,34 @@ rawFTIRSpec <- read.csv(file = file.path('Data_R',
                                          'Original_Spectra.csv'),
                         row.names = 1)
 colnames(rawFTIRSpec)[-1:-10] <- substring(colnames(rawFTIRSpec)[-1:-10], 2)
-
-rawFTIRSpecSim <- rawFTIRSpec[, c(-1:-2,-4:-10)]
 ```
 
 ## Original FTIR spectra
 
-The original FTIR spectra are between 4000 and 600 cm^-1^, with wavenumber interval of 4 cm^-1^. And the raw spectra looks like:
+The original FTIR spectra are between 4000 and 600 cm^-1^, with wavenumber interval of 4 cm^-1^. And the raw spectra from potted cultivars and branch cuttings looks like:
 
 ```{r}
 #| label: Figure full raw spectra
-#| echo: true
+#| echo: false
 #| warning: false
 
-plot_original_spec <-
-rawFTIRSpecSim |> plot_spectra(
+plot_original_spec_cul <-
+rawFTIRSpec[rawFTIRSpec[, 5] == 'cul', c(-1:-2,-4:-10)] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
-)
+) +
+  labs(title = 'Potted cultivars',
+       x = '')
 
-print(plot_original_spec)  
+plot_original_spec_cut <-
+rawFTIRSpec[rawFTIRSpec[, 5] == 'cut', c(-1:-2,-4:-10)] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+    labs(title = 'Branch cuttings')
+
+plot_original_spec_cul /
+  plot_original_spec_cut
 
 ```
 
@@ -66,130 +76,80 @@ print(plot_original_spec)
 #| echo: true
 #| warning: false
 
-#1 - No treatment - only extract wavenumbers
+#1 - smoothing + normalisation + baseline offset
 processing_steps_ftir1 <- list(
   functions = c(
     get_savitzkygolay,
-    get_filter_wavenumbers
-
-  ),
-  parameters = list(
-    list(width = 7, poly = 2, deriv = 0),
-    list(min_wn = 600, max_wn = 3996)
-    
-  )
-)
-
-#2 - MSC
-processing_steps_ftir2 <- list(
-  functions = c(
-    run_msc,
     get_filter_wavenumbers,
+    get_area_normalisation,
     get_baseline_offset
   ),
   parameters = list(
-    list(),
-    list(min_wn = 600, max_wn = 3996),
+    list(width = 7, poly = 2, deriv = 0),
+    list(min_wn = 800, max_wn = 1800),
+    list(method = "area"),
     list()
   )
 )
 
-#3 - ALS
+#2 - smoothing + normalisation + MSC + baseline offset
+processing_steps_ftir2 <- list(
+  functions = c(
+    get_savitzkygolay,
+    get_filter_wavenumbers,
+    get_area_normalisation,
+    run_msc,
+    get_baseline_offset
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 0),
+    list(min_wn = 800, max_wn = 1800),
+    list(method = "area"),
+    list(),
+    list()
+  )
+)
+
+#3 - smoothing + normalisation + ALS + baseline offset
 processing_steps_ftir3 <- list(
   functions = c(
     get_savitzkygolay,
-    run_als_baseline_correction,
     get_filter_wavenumbers,
+    get_area_normalisation,
+    run_als_baseline_correction,
     get_baseline_offset
   ),
   parameters = list(
     list(width = 7, poly = 2, deriv = 0),
+    list(min_wn = 800, max_wn = 1800),
+    list(method = "area"),
     list(lambda = 5, p = 0.001),
-    list(min_wn = 600, max_wn = 3996),
     list()
   )
 )
 
-#4 - ALS-MSC
+#8 - smoothing + nomralisation + ALS + MSC + baseline offset
 processing_steps_ftir4 <- list(
   functions = c(
     get_savitzkygolay,
-    run_als_baseline_correction,
     get_filter_wavenumbers,
+    get_area_normalisation,
+    run_als_baseline_correction,
     run_msc,
     get_baseline_offset
   ),
   parameters = list(
     list(width = 7, poly = 2, deriv = 0),
+    list(min_wn = 800, max_wn = 1800),
+    list(method = "area"),
     list(lambda = 5, p = 0.001),
-    list(min_wn = 600, max_wn = 3996),
     list(),
     list()
   )
 )
 
-#5 - SG-2nd derivative
+#5 - smoothing + 2nd derivative
 processing_steps_ftir5 <- list(
-  functions = c(
-    get_savitzkygolay,
-    get_filter_wavenumbers
-  ),
-  parameters = list(
-    list(width = 7, poly = 2, deriv = 2),
-    list(min_wn = 600, max_wn = 3996)
-  )
-)
-
-#6 - signature region - MSC
-processing_steps_ftir6 <- list(
-  functions = c(
-    run_msc,
-    get_filter_wavenumbers,
-    get_baseline_offset
-  ),
-  parameters = list(
-    list(),
-    list(min_wn = 800, max_wn = 1800),
-    list()
-  )
-)
-
-#7 - signature region - ALS
-processing_steps_ftir7 <- list(
-  functions = c(
-    get_savitzkygolay,
-    run_als_baseline_correction,
-    get_filter_wavenumbers,
-    get_baseline_offset
-  ),
-  parameters = list(
-    list(width = 7, poly = 2, deriv = 0),
-    list(lambda = 5, p = 0.001),
-    list(min_wn = 800, max_wn = 1800),
-    list()
-  )
-)
-
-#8 - signature region - ALS-MSC
-processing_steps_ftir8 <- list(
-  functions = c(
-    get_savitzkygolay,
-    run_als_baseline_correction,
-    get_filter_wavenumbers,
-    run_msc,
-    get_baseline_offset
-  ),
-  parameters = list(
-    list(width = 7, poly = 2, deriv = 0),
-    list(lambda = 5, p = 0.001),
-    list(min_wn = 800, max_wn = 1800),
-    list(),
-    list()
-  )
-)
-
-#9 - signature region - GC-2nd derivative
-processing_steps_ftir9 <- list(
   functions = c(
     get_savitzkygolay,
     get_filter_wavenumbers
@@ -206,44 +166,28 @@ processing_steps_ftir9 <- list(
 #| echo: true
 #| warning: false
 
-rawFTIRSpecSimMat <- as.matrix(rawFTIRSpecSim[, -1])
-row.names(rawFTIRSpecSimMat) <- rawFTIRSpecSim[, 1]
+rawFTIRSpecMat <- apply(as.matrix(rawFTIRSpec[, -1:-10]), c(1,2), as.numeric)
+row.names(rawFTIRSpecMat) <- rawFTIRSpec[, 3]
 data_preprocessed <- list(
   cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected1 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir1)
+    unique_id = rawFTIRSpec[, 3],
+    corrected1 = run_preprocessing_list(rawFTIRSpec[, c(-1:-2,-4:-10)], processing_steps_ftir1)
   ),
   cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected2 = run_preprocessing_list(rawFTIRSpecSimMat, processing_steps_ftir2)
+    unique_id = rawFTIRSpec[, 3],
+    corrected2 = run_preprocessing_list(rawFTIRSpecMat, processing_steps_ftir2)
   ),
   cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected3 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir3)
+    unique_id = rawFTIRSpec[, 3],
+    corrected3 = run_preprocessing_list(rawFTIRSpec[, c(-1:-2,-4:-10)], processing_steps_ftir3)
   ),
   cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected4 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir4)
+    unique_id = rawFTIRSpec[, 3],
+    corrected4 = run_preprocessing_list(rawFTIRSpec[, c(-1:-2,-4:-10)], processing_steps_ftir4)
   ),
   cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected5 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir5)
-  ),
-  cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected6 = run_preprocessing_list(rawFTIRSpecSimMat, processing_steps_ftir6)
-  ),
-  cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected7 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir7)
-  ),
-  cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected8 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir8)
-  ),
-  cbind(
-    unique_id = rawFTIRSpecSim[, 1],
-    corrected9 = run_preprocessing_list(rawFTIRSpecSim, processing_steps_ftir9)
+    unique_id = rawFTIRSpec[, 3],
+    corrected5 = run_preprocessing_list(rawFTIRSpec[, c(-1:-2,-4:-10)], processing_steps_ftir5)
   )
 )
 data_preprocessed <- lapply(data_preprocessed, as.data.frame)
@@ -251,130 +195,137 @@ for (loopI in 1:length(data_preprocessed)) {
   data_preprocessed[[loopI]][, -1] <-
     apply(data_preprocessed[[loopI]][, -1], c(1,2), as.numeric)
 }
+
+rm(rawFTIRSpecMat)
 ```
 
 Several methodologies were applied on the raw FTIR spectra to search for better methodologies, including Multiplicative Scattering Correction (MSC), Asymmetric least squares (ALS) baseline correction and 2nd derivative spectra. Smoothing and baseline offset deduction are also applied on raw spectra. Two types of wavenumber ranges were investigated as well - the whole range (600-4000) and signature area only (800-1000).
 
-### The whole range: MSC
+### Signature range: smoothing + normalised by peak area + baseline offset
 
 ```{r}
-#| label: WR MSC
+#| label: signature raw
 #| echo: true
 #| warning: false
 
-plot_msc_spec <-
-data_preprocessed[[2]] |> plot_spectra(
+plot_raw_spec_cul <-
+data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
-)
+) +
+  labs(title = 'Potted cultivars',
+       x = '')
 
-print(plot_msc_spec)  
+plot_raw_spec_cut <-
+data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+    labs(title = 'Branch cuttings')
+
+plot_raw_spec_cul /
+  plot_raw_spec_cut
 ```
 
-### The whole range: smoothing + ALS
+### Signature range: smoothing + normalised by peak area + MSC + baseline offset
 
 ```{r}
-#| label: WR Smoothing ALS
+#| label: signature MSC
 #| echo: true
 #| warning: false
-plot_als_spec <-
-data_preprocessed[[3]] |> plot_spectra(
+
+plot_msc_spec_cul <-
+data_preprocessed[[2]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
-)
+) +
+  labs(title = 'Potted cultivars',
+       x = '')
 
-print(plot_als_spec)  
+plot_msc_spec_cut <-
+data_preprocessed[[2]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+    labs(title = 'Branch cuttings')
+
+plot_msc_spec_cul /
+  plot_msc_spec_cut
 ```
 
-### The whole range: smoothing + ALS + MSC
+### Signature range: smoothing + normalised by peak area + ALS + baseline offset
 
 ```{r}
-#| label: WR Smoothing ALS MSC
+#| label: signature ALS
 #| echo: true
 #| warning: false
-plot_alsmsc_spec <-
-data_preprocessed[[4]] |> plot_spectra(
+plot_als_spec_cul <-
+data_preprocessed[[3]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
-)
+) +
+  labs(title = 'Potted cultivars',
+       x = '')
 
-print(plot_alsmsc_spec)
+plot_als_spec_cut <-
+data_preprocessed[[3]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+    labs(title = 'Branch cuttings')
+
+plot_als_spec_cul /
+  plot_als_spec_cut
 ```
 
-### The whole range: smoothing + 2^nd^ derivative
+### Signature range: smoothing + normalised by peak area + ALS + MSC + baseline offset
 
 ```{r}
-#| label: WR Smoothing 2nd derivative
+#| label: signature ALS MSC
 #| echo: true
 #| warning: false
-plot_2nd_spec <-
-data_preprocessed[[5]] |> plot_spectra(
+plot_als_msc_spec_cul <-
+data_preprocessed[[4]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
-)
+) +
+  labs(title = 'Potted cultivars',
+       x = '')
 
-print(plot_2nd_spec)
+plot_als_msc_spec_cut <-
+data_preprocessed[[4]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+    labs(title = 'Branch cuttings')
+
+plot_als_msc_spec_cul /
+  plot_als_msc_spec_cut
 ```
 
-### Signature area: MSC
+### Signature range: smoothing + 2^nd^ derivative
 
 ```{r}
-#| label: Sg MSC
+#| label: signature 2nd derivative
 #| echo: true
 #| warning: false
-
-plot_sg_msc_spec <-
-data_preprocessed[[6]] |> plot_spectra(
+plot_2nd_spec_cul <-
+data_preprocessed[[5]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
-)
+) +
+  labs(title = 'Potted cultivars',
+       x = '')
 
-print(plot_sg_msc_spec)  
-```
-
-### Signature area: smoothing + ALS
-
-```{r}
-#| label: Sg Smoothing ALS
-#| echo: true
-#| warning: false
-plot_sg_als_spec <-
-data_preprocessed[[7]] |> plot_spectra(
+plot_2nd_spec_cut <-
+data_preprocessed[[5]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
-)
+) +
+    labs(title = 'Branch cuttings')
 
-print(plot_sg_als_spec)  
-```
-
-### Signature area: smoothing + ALS + MSC
-
-```{r}
-#| label: Sg Smoothing ALS MSC
-#| echo: true
-#| warning: false
-plot_sg_alsmsc_spec <-
-data_preprocessed[[8]] |> plot_spectra(
-  group_var = 'unique_id',
-  col_var = 'unique_id'
-)
-
-print(plot_sg_alsmsc_spec)
-```
-
-### Signature area: smoothing + 2^nd^ derivative
-
-```{r}
-#| label: Sg Smoothing 2nd derivative
-#| echo: true
-#| warning: false
-plot_sg_2nd_spec <-
-data_preprocessed[[9]] |> plot_spectra(
-  group_var = 'unique_id',
-  col_var = 'unique_id'
-)
-
-print(plot_sg_2nd_spec)
+plot_2nd_spec_cul /
+  plot_2nd_spec_cut
 ```
 
 ## Input GCMS signals
@@ -539,6 +490,7 @@ if (rawFTIRSpec[loopI, 5] == 'cul') {
 pcaMatHeight <- cbind(rawFTIRSpec,
                     GCDataMean[tempInd, c(1,2)])[, -11:-1772]
 colnames(pcaMatHeight)[11] <- 'pCA_ng_grain'
+pcaMatHeight <- pcaMatHeight[!is.na(pcaMatHeight[, 11]),]
 
 rm(loopI,
    tempInd)
@@ -554,75 +506,82 @@ In this section, the GCMS signals were input into PLS model as response variable
 #| warning: false
 
 #Check whetether there is already a RData file containing the PLS model, skip the lines generating the PLS model and read the archives driectly if true
-if (file.exists(file.path('Output_R', 'pls_raw.RData'))) {
-  load(file.path('Output_R', 'pls_raw.RData'))
-  load(file.path('Output_R', 'pls_msc.RData'))
-  load(file.path('Output_R', 'pls_als.RData'))
-  load(file.path('Output_R', 'pls_als_msc.RData'))
-  load(file.path('Output_R', 'pls_2nd.RData'))
-  load(file.path('Output_R', 'pls_sig_msc.RData'))
-  load(file.path('Output_R', 'pls_sig_als.RData'))
-  load(file.path('Output_R', 'pls_sig_als_msc.RData'))
-  load(file.path('Output_R', 'pls_sig_2nd.RData'))
+if (file.exists(file.path('Output_R', 'pls_sig_raw_cul.RData'))) {
+  load(file.path('Output_R', 'pls_sig_raw_cul.RData'))
+  load(file.path('Output_R', 'pls_sig_msc_cul.RData'))
+  load(file.path('Output_R', 'pls_sig_als_cul.RData'))
+  load(file.path('Output_R', 'pls_sig_als_msc_cul.RData'))
+  load(file.path('Output_R', 'pls_sig_2nd_cul.RData'))
+  
+  load(file.path('Output_R', 'pls_sig_raw_cut.RData'))
+  load(file.path('Output_R', 'pls_sig_msc_cut.RData'))
+  load(file.path('Output_R', 'pls_sig_als_cut.RData'))
+  load(file.path('Output_R', 'pls_sig_als_msc_cut.RData'))
+  load(file.path('Output_R', 'pls_sig_2nd_cut.RData'))
 }else {
-  pls_raw <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+  pls_sig_raw_cul <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                   data_preprocessed[[1]][, -1],
-                  pCA_ng_grain = pcaMatHeight[, 11]),
+                  pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cul'),],
                  pred_col = 'pCA_ng_grain')
 
-  pls_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+  pls_sig_msc_cul <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                     data_preprocessed[[2]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11]),
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cul'),],
                    pred_col = 'pCA_ng_grain')
   
-  pls_als <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+  pls_sig_als_cul <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                     data_preprocessed[[3]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11]),
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cul'),],
                    pred_col = 'pCA_ng_grain')
   
-  pls_als_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+  pls_sig_als_msc_cul <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                     data_preprocessed[[4]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11]),
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cul'),],
                    pred_col = 'pCA_ng_grain')
   
-  pls_2nd <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+  pls_sig_2nd_cul <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                     data_preprocessed[[5]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11]),
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cul'),],
                    pred_col = 'pCA_ng_grain')
   
-  pls_sig_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                    data_preprocessed[[6]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11]),
+  pls_sig_raw_cut <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                  data_preprocessed[[1]][, -1],
+                  pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),],
+                 pred_col = 'pCA_ng_grain')
+
+  pls_sig_msc_cut <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[2]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),],
                    pred_col = 'pCA_ng_grain')
   
-  pls_sig_als <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                    data_preprocessed[[7]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11]),
+  pls_sig_als_cut <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[3]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),],
                    pred_col = 'pCA_ng_grain')
   
-  pls_sig_als_msc <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                    data_preprocessed[[8]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11]),
+  pls_sig_als_msc_cut <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[4]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),],
                    pred_col = 'pCA_ng_grain')
   
-  pls_sig_2nd <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                    data_preprocessed[[9]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11]),
+  pls_sig_2nd_cut <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[5]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),],
                    pred_col = 'pCA_ng_grain')
   
   #Save the pls results as .RData indepecdently (so that they do not exceed the 100 MB limitation from GitHub)
-  save(pls_raw,file = file.path('Output_R', 'pls_raw.RData'))
-  save(pls_msc, file = file.path('Output_R', 'pls_msc.RData'))
-  save(pls_als, file = file.path('Output_R', 'pls_als.RData'))
-  save(pls_als_msc, file = file.path('Output_R', 'pls_als_msc.RData'))
-  save(pls_2nd, file = file.path('Output_R', 'pls_2nd.RData'))
-  save(pls_sig_msc, file = file.path('Output_R', 'pls_sig_msc.RData'))
-  save(pls_sig_als, file = file.path('Output_R', 'pls_sig_als.RData'))
-  save(pls_sig_als_msc, file = file.path('Output_R', 'pls_sig_als_msc.RData'))
-  save(pls_sig_2nd, file = file.path('Output_R', 'pls_sig_2nd.RData'))
+  save(pls_sig_raw_cul,file = file.path('Output_R', 'pls_sig_raw_cul.RData'))
+  save(pls_sig_msc_cul, file = file.path('Output_R', 'pls_sig_msc_cul.RData'))
+  save(pls_sig_als_cul, file = file.path('Output_R', 'pls_sig_als_cul.RData'))
+  save(pls_sig_als_msc_cul, file = file.path('Output_R', 'pls_sig_als_msc_cul.RData'))
+  save(pls_sig_2nd_cul, file = file.path('Output_R', 'pls_sig_2nd_cul.RData'))
+  
+  save(pls_sig_raw_cut,file = file.path('Output_R', 'pls_sig_raw_cut.RData'))
+  save(pls_sig_msc_cut, file = file.path('Output_R', 'pls_sig_msc_cut.RData'))
+  save(pls_sig_als_cut, file = file.path('Output_R', 'pls_sig_als_cut.RData'))
+  save(pls_sig_als_msc_cut, file = file.path('Output_R', 'pls_sig_als_msc_cut.RData'))
+  save(pls_sig_2nd_cut, file = file.path('Output_R', 'pls_sig_2nd_cut.RData'))
 }
-
-
 ```
 
 ### Original spectra
@@ -632,36 +591,69 @@ if (file.exists(file.path('Output_R', 'pls_raw.RData'))) {
 #| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_raw <- pick_1se_comp(pls_raw)[[1]]
+numComps_raw_cul <- pick_num_comp(pls_sig_raw_cul, 0.95)
 
 #Scatter plot
-plot_raw_scatter <- plot_pls_scatter(plsModel = pls_raw,
-                                     numComp = numComps_raw)
+plot_raw_scatter_cul <- plot_pls_scatter(plsModel = pls_sig_raw_cul,
+                                     numComp = numComps_raw_cul)
 
 #Coefficients plot
-plot_raw_coefficients <- plot_pls_coefficients(pls_raw,
-                                               numComp = numComps_raw,
-                                               wavenumberRange = c(500, 4000, 500),
+plot_raw_coefficients_cul <- plot_pls_coefficients(pls_sig_raw_cul,
+                                               numComp = numComps_raw_cul,
+                                               wavenumberRange = c(800, 1800, 200),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
                                                           )
                                                )
 
 #Loadings plot
-plot_raw_loadings <- plot_pls_loadings(pls_raw,
-                                               numComp = 2,
-                                               wavenumberRange = c(500, 4000, 500),
+plot_raw_loadings_cul <- plot_pls_loadings(pls_sig_raw_cul,
+                                               numComp = 1,
+                                               wavenumberRange = c(800, 1800, 200),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
                                                           )
                                                )
 
 #Variance explained by different components
-plot_raw_variances <- plot_pls_variance(pls_raw,
-                                               numComp = numComps_raw)
+plot_raw_variances_cul <- plot_pls_variance(pls_sig_raw_cul,
+                                               numComp = numComps_raw_cul)
 
 #Residuals
-plot_raw_residuals <- plot_pls_residuals(pls_raw,
-                                               numComp = numComps_raw,
-                                               wavenumberRange = c(500, 4000, 500)
+plot_raw_residuals_cul <- plot_pls_residuals(pls_sig_raw_cul,
+                                               numComp = numComps_raw_cul,
+                                               wavenumberRange = c(800, 1800, 200)
+                                         )
+
+#Setup the number of components to be analysed
+numComps_raw_cut <- pick_num_comp(pls_sig_raw_cut, 0.95)
+
+#Scatter plot
+plot_raw_scatter_cut <- plot_pls_scatter(plsModel = pls_sig_raw_cut,
+                                     numComp = numComps_raw_cut)
+
+#Coefficients plot
+plot_raw_coefficients_cut <- plot_pls_coefficients(pls_sig_raw_cut,
+                                               numComp = numComps_raw_cut,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
+                                                          )
+                                               )
+
+#Loadings plot
+plot_raw_loadings_cut <- plot_pls_loadings(pls_sig_raw_cut,
+                                               numComp = 1,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
+                                                          )
+                                               )
+
+#Variance explained by different components
+plot_raw_variances_cut <- plot_pls_variance(pls_sig_raw_cut,
+                                               numComp = numComps_raw_cut)
+
+#Residuals
+plot_raw_residuals_cut <- plot_pls_residuals(pls_sig_raw_cut,
+                                               numComp = numComps_raw_cut,
+                                               wavenumberRange = c(800, 1800, 200)
                                          )
 ```
 
@@ -670,214 +662,16 @@ plot_raw_residuals <- plot_pls_residuals(pls_raw,
 #| fig-width: 8
 #| fig-height: 12
 #| fig-dpi: 600
-
- (plot_original_spec | plot_raw_scatter) /
-    (plot_raw_variances | plot_raw_coefficients) /
-    (plot_raw_loadings | plot_raw_residuals)
-```
-
-### The whole range: MSC
-
-```{r}
-#| label: pls - msc spectra
-#| echo: false
 #| warning: false
-#Setup the number of components to be analysed
-numComps_msc <- pick_1se_comp(pls_msc)[[1]]
+#| message: false
 
-#Scatter plot
-plot_msc_scatter <- plot_pls_scatter(plsModel = pls_msc,
-                                     numComp = numComps_msc)
+ (plot_raw_spec_cul | plot_raw_scatter_cul) /
+    (plot_raw_variances_cul | plot_raw_coefficients_cul) /
+    (plot_raw_loadings_cul | plot_raw_residuals_cul)
 
-#Coefficients plot
-plot_msc_coefficients <- plot_pls_coefficients(pls_msc,
-                                               numComp = numComps_msc,
-                                               wavenumberRange = c(500, 4000, 500),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
-                                                          )
-                                               )
-
-#Loadings plot
-plot_msc_loadings <- plot_pls_loadings(pls_msc,
-                                               numComp = 2,
-                                               wavenumberRange = c(500, 4000, 500),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
-                                                          )
-                                               )
-
-#Variance explained by different components
-plot_msc_variances <- plot_pls_variance(pls_msc,
-                                               numComp = numComps_msc)
-
-#Residuals
-plot_msc_residuals <- plot_pls_residuals(pls_msc,
-                                               numComp = numComps_msc,
-                                               wavenumberRange = c(500, 4000, 500)
-                                         )
-```
-
-```{r}
-#| label: pls - msc spectra - figure
-#| fig-width: 8
-#| fig-height: 12
-#| fig-dpi: 600
-
- (plot_msc_spec | plot_msc_scatter) /
-    (plot_msc_variances | plot_msc_coefficients) /
-    (plot_msc_loadings | plot_msc_residuals)
-```
-
-### The whole range: smoothing + ALS
-
-```{r}
-#| label: pls - als spectra
-#| echo: false
-#| warning: false
-#Setup the number of components to be analysed
-numComps_als <- pick_1se_comp(pls_als)[[1]]
-
-#Scatter plot
-plot_als_scatter <- plot_pls_scatter(plsModel = pls_als,
-                                     numComp = numComps_als)
-
-#Coefficients plot
-plot_als_coefficients <- plot_pls_coefficients(pls_als,
-                                               numComp = numComps_als,
-                                               wavenumberRange = c(500, 4000, 500),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
-                                                          )
-                                               )
-
-#Loadings plot
-plot_als_loadings <- plot_pls_loadings(pls_als,
-                                               numComp = 2,
-                                               wavenumberRange = c(500, 4000, 500),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
-                                                          )
-                                               )
-
-#Variance explained by different components
-plot_als_variances <- plot_pls_variance(pls_als,
-                                               numComp = numComps_als)
-
-#Residuals
-plot_als_residuals <- plot_pls_residuals(pls_als,
-                                               numComp = numComps_als,
-                                               wavenumberRange = c(500, 4000, 500)
-                                         )
-```
-
-```{r}
-#| label: pls - als spectra - figure
-#| fig-width: 8
-#| fig-height: 12
-#| fig-dpi: 600
-
- (plot_als_spec | plot_als_scatter) /
-    (plot_als_variances | plot_als_coefficients) /
-    (plot_als_loadings | plot_als_residuals)
-```
-
-### The whole range: smoothing + ALS + MSC
-
-```{r}
-#| label: pls - als msc spectra
-#| echo: false
-#| warning: false
-#Setup the number of components to be analysed
-numComps_als_msc <- pick_1se_comp(pls_als_msc)[[1]]
-
-#Scatter plot
-plot_als_msc_scatter <- plot_pls_scatter(plsModel = pls_als_msc,
-                                     numComp = numComps_als_msc)
-
-#Coefficients plot
-plot_als_msc_coefficients <- plot_pls_coefficients(pls_als_msc,
-                                               numComp = numComps_als_msc,
-                                               wavenumberRange = c(500, 4000, 500),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
-                                                          )
-                                               )
-
-#Loadings plot
-plot_als_msc_loadings <- plot_pls_loadings(pls_als_msc,
-                                               numComp = 2,
-                                               wavenumberRange = c(500, 4000, 500),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
-                                                          )
-                                               )
-
-#Variance explained by different components
-plot_als_msc_variances <- plot_pls_variance(pls_als_msc,
-                                               numComp = numComps_als_msc)
-
-#Residuals
-plot_als_msc_residuals <- plot_pls_residuals(pls_als_msc,
-                                               numComp = numComps_als_msc,
-                                               wavenumberRange = c(500, 4000, 500)
-                                         )
-```
-
-```{r}
-#| label: pls - als msc spectra - figure
-#| fig-width: 8
-#| fig-height: 12
-#| fig-dpi: 600
-
- (plot_alsmsc_spec | plot_als_msc_scatter) /
-    (plot_als_msc_variances | plot_als_msc_coefficients) /
-    (plot_als_msc_loadings | plot_als_msc_residuals)
-```
-
-### The whole range: smoothing + 2^nd^ derivative
-
-```{r}
-#| label: pls - 2nd derivative spectra
-#| echo: false
-#| warning: false
-#Setup the number of components to be analysed
-numComps_2nd <- pick_1se_comp(pls_2nd)[[1]]
-
-#Scatter plot
-plot_2nd_scatter <- plot_pls_scatter(plsModel = pls_2nd,
-                                     numComp = numComps_2nd)
-
-#Coefficients plot
-plot_2nd_coefficients <- plot_pls_coefficients(pls_2nd,
-                                               numComp = numComps_2nd,
-                                               wavenumberRange = c(500, 4000, 500),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
-                                                          )
-                                               )
-
-#Loadings plot
-plot_2nd_loadings <- plot_pls_loadings(pls_2nd,
-                                               numComp = 3,
-                                               wavenumberRange = c(500, 4000, 500),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
-                                                          )
-                                               )
-
-#Variance explained by different components
-plot_2nd_variances <- plot_pls_variance(pls_2nd,
-                                               numComp = numComps_2nd)
-
-#Residuals
-plot_2nd_residuals <- plot_pls_residuals(pls_2nd,
-                                               numComp = numComps_2nd,
-                                               wavenumberRange = c(500, 4000, 500)
-                                         )
-```
-
-```{r}
-#| label: pls - 2nd derivative spectra - figure
-#| fig-width: 8
-#| fig-height: 12
-#| fig-dpi: 600
-
- (plot_2nd_spec | plot_2nd_scatter) /
-    (plot_2nd_variances | plot_2nd_coefficients) /
-    (plot_2nd_loadings | plot_2nd_residuals)
+ (plot_raw_spec_cut | plot_raw_scatter_cut) /
+    (plot_raw_variances_cut | plot_raw_coefficients_cut) /
+    (plot_raw_loadings_cut | plot_raw_residuals_cut)
 ```
 
 ### Signature area: MSC
@@ -887,35 +681,68 @@ plot_2nd_residuals <- plot_pls_residuals(pls_2nd,
 #| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_sig_msc <- pick_1se_comp(pls_sig_msc)[[1]]
+numComps_sig_msc_cul <- pick_num_comp(pls_sig_msc_cul, 0.95)
 
 #Scatter plot
-plot_sig_msc_scatter <- plot_pls_scatter(plsModel = pls_sig_msc,
-                                     numComp = numComps_sig_msc)
+plot_sig_msc_scatter_cul <- plot_pls_scatter(plsModel = pls_sig_msc_cul,
+                                     numComp = numComps_sig_msc_cul)
 
 #Coefficients plot
-plot_sig_msc_coefficients <- plot_pls_coefficients(pls_sig_msc,
-                                               numComp = numComps_sig_msc,
+plot_sig_msc_coefficients_cul <- plot_pls_coefficients(pls_sig_msc_cul,
+                                               numComp = numComps_sig_msc_cul,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[6]])[-1])
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
                                                           )
                                                )
 
 #Loadings plot
-plot_sig_msc_loadings <- plot_pls_loadings(pls_sig_msc,
-                                               numComp = 2,
+plot_sig_msc_loadings_cul <- plot_pls_loadings(pls_sig_msc_cul,
+                                               numComp = 1,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[6]])[-1])
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
                                                           )
                                                )
 
 #Variance explained by different components
-plot_sig_msc_variances <- plot_pls_variance(pls_sig_msc,
-                                               numComp = numComps_sig_msc)
+plot_sig_msc_variances_cul <- plot_pls_variance(pls_sig_msc_cul,
+                                               numComp = numComps_sig_msc_cul)
 
 #Residuals
-plot_sig_msc_residuals <- plot_pls_residuals(pls_sig_msc,
-                                               numComp = numComps_sig_msc,
+plot_sig_msc_residuals_cul <- plot_pls_residuals(pls_sig_msc_cul,
+                                               numComp = numComps_sig_msc_cul,
+                                               wavenumberRange = c(800, 1800, 200)
+                                         )
+
+#Setup the number of components to be analysed
+numComps_sig_msc_cut <- pick_num_comp(pls_sig_msc_cut, 0.95)
+
+#Scatter plot
+plot_sig_msc_scatter_cut <- plot_pls_scatter(plsModel = pls_sig_msc_cut,
+                                     numComp = numComps_sig_msc_cut)
+
+#Coefficients plot
+plot_sig_msc_coefficients_cut <- plot_pls_coefficients(pls_sig_msc_cut,
+                                               numComp = numComps_sig_msc_cut,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
+                                                          )
+                                               )
+
+#Loadings plot
+plot_sig_msc_loadings_cut <- plot_pls_loadings(pls_sig_msc_cut,
+                                               numComp = 1,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[2]])[-1])
+                                                          )
+                                               )
+
+#Variance explained by different components
+plot_sig_msc_variances_cut <- plot_pls_variance(pls_sig_msc_cut,
+                                               numComp = numComps_sig_msc_cut)
+
+#Residuals
+plot_sig_msc_residuals_cut <- plot_pls_residuals(pls_sig_msc_cut,
+                                               numComp = numComps_sig_msc_cut,
                                                wavenumberRange = c(800, 1800, 200)
                                          )
 ```
@@ -926,10 +753,15 @@ plot_sig_msc_residuals <- plot_pls_residuals(pls_sig_msc,
 #| fig-height: 12
 #| fig-dpi: 600
 #| warning: false
+#| message: false
 
- (plot_sg_msc_spec | plot_sig_msc_scatter) /
-    (plot_sig_msc_variances | plot_sig_msc_coefficients) /
-    (plot_sig_msc_loadings | plot_sig_msc_residuals)
+ (plot_msc_spec_cul | plot_sig_msc_scatter_cul) /
+    (plot_sig_msc_variances_cul | plot_sig_msc_coefficients_cul) /
+    (plot_sig_msc_loadings_cul | plot_sig_msc_residuals_cul)
+
+ (plot_msc_spec_cut | plot_sig_msc_scatter_cut) /
+    (plot_sig_msc_variances_cut | plot_sig_msc_coefficients_cut) /
+    (plot_sig_msc_loadings_cut | plot_sig_msc_residuals_cut)
 ```
 
 ### Signature area: smoothing + ALS
@@ -939,35 +771,68 @@ plot_sig_msc_residuals <- plot_pls_residuals(pls_sig_msc,
 #| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_sig_als <- pick_1se_comp(pls_sig_als)[[1]]
+numComps_sig_als_cul <- pick_num_comp(pls_sig_als_cul, 0.95)
 
 #Scatter plot
-plot_sig_als_scatter <- plot_pls_scatter(plsModel = pls_sig_als,
-                                     numComp = numComps_sig_als)
+plot_sig_als_scatter_cul <- plot_pls_scatter(plsModel = pls_sig_als_cul,
+                                     numComp = numComps_sig_als_cul)
 
 #Coefficients plot
-plot_sig_als_coefficients <- plot_pls_coefficients(pls_sig_als,
-                                               numComp = numComps_sig_als,
+plot_sig_als_coefficients_cul <- plot_pls_coefficients(pls_sig_als_cul,
+                                               numComp = numComps_sig_als_cul,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[7]])[-1])
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
                                                           )
                                                )
 
 #Loadings plot
-plot_sig_als_loadings <- plot_pls_loadings(pls_sig_als,
-                                               numComp = 2,
+plot_sig_als_loadings_cul <- plot_pls_loadings(pls_sig_als_cul,
+                                               numComp = 1,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[7]])[-1])
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
                                                           )
                                                )
 
 #Variance explained by different components
-plot_sig_als_variances <- plot_pls_variance(pls_sig_als,
-                                               numComp = numComps_sig_als)
+plot_sig_als_variances_cul <- plot_pls_variance(pls_sig_als_cul,
+                                               numComp = numComps_sig_als_cul)
 
 #Residuals
-plot_sig_als_residuals <- plot_pls_residuals(pls_sig_als,
-                                               numComp = numComps_sig_als,
+plot_sig_als_residuals_cul <- plot_pls_residuals(pls_sig_als_cul,
+                                               numComp = numComps_sig_als_cul,
+                                               wavenumberRange = c(800, 1800, 200)
+                                         )
+
+#Setup the number of components to be analysed
+numComps_sig_als_cut <- pick_num_comp(pls_sig_als_cut, 0.95)
+
+#Scatter plot
+plot_sig_als_scatter_cut <- plot_pls_scatter(plsModel = pls_sig_als_cut,
+                                     numComp = numComps_sig_als_cut)
+
+#Coefficients plot
+plot_sig_als_coefficients_cut <- plot_pls_coefficients(pls_sig_als_cut,
+                                               numComp = numComps_sig_als_cut,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
+                                                          )
+                                               )
+
+#Loadings plot
+plot_sig_als_loadings_cut <- plot_pls_loadings(pls_sig_als_cut,
+                                               numComp = 1,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[3]])[-1])
+                                                          )
+                                               )
+
+#Variance explained by different components
+plot_sig_als_variances_cut <- plot_pls_variance(pls_sig_als_cut,
+                                               numComp = numComps_sig_als_cut)
+
+#Residuals
+plot_sig_als_residuals_cut <- plot_pls_residuals(pls_sig_als_cut,
+                                               numComp = numComps_sig_als_cut,
                                                wavenumberRange = c(800, 1800, 200)
                                          )
 ```
@@ -978,10 +843,15 @@ plot_sig_als_residuals <- plot_pls_residuals(pls_sig_als,
 #| fig-height: 12
 #| fig-dpi: 600
 #| warning: false
+#| message: false
 
- (plot_sg_als_spec | plot_sig_als_scatter) /
-    (plot_sig_als_variances | plot_sig_als_coefficients) /
-    (plot_sig_als_loadings | plot_sig_als_residuals)
+ (plot_als_spec_cul | plot_sig_als_scatter_cul) /
+    (plot_sig_als_variances_cul | plot_sig_als_coefficients_cul) /
+    (plot_sig_als_loadings_cul | plot_sig_als_residuals_cul)
+
+ (plot_als_spec_cut | plot_sig_als_scatter_cut) /
+    (plot_sig_als_variances_cut | plot_sig_als_coefficients_cut) /
+    (plot_sig_als_loadings_cut | plot_sig_als_residuals_cut)
 ```
 
 ### Signature area: smoothing + ALS + MSC
@@ -991,35 +861,68 @@ plot_sig_als_residuals <- plot_pls_residuals(pls_sig_als,
 #| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_sig_als_msc <- pick_1se_comp(pls_sig_als_msc)[[1]]
+numComps_sig_als_msc_cul <- pick_num_comp(pls_sig_als_msc_cul, 0.95)
 
 #Scatter plot
-plot_sig_als_msc_scatter <- plot_pls_scatter(plsModel = pls_sig_als_msc,
-                                     numComp = numComps_sig_als_msc)
+plot_sig_als_msc_scatter_cul <- plot_pls_scatter(plsModel = pls_sig_als_msc_cul,
+                                     numComp = numComps_sig_als_msc_cul)
 
 #Coefficients plot
-plot_sig_als_msc_coefficients <- plot_pls_coefficients(pls_sig_als_msc,
-                                               numComp = numComps_sig_als_msc,
+plot_sig_als_msc_coefficients_cul <- plot_pls_coefficients(pls_sig_als_msc_cul,
+                                               numComp = numComps_sig_als_msc_cul,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[8]])[-1])
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
                                                           )
                                                )
 
 #Loadings plot
-plot_sig_als_msc_loadings <- plot_pls_loadings(pls_sig_als_msc,
-                                               numComp = 2,
+plot_sig_als_msc_loadings_cul <- plot_pls_loadings(pls_sig_als_msc_cul,
+                                               numComp = 1,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[8]])[-1])
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
                                                           )
                                                )
 
 #Variance explained by different components
-plot_sig_als_msc_variances <- plot_pls_variance(pls_sig_als_msc,
-                                               numComp = numComps_sig_als_msc)
+plot_sig_als_msc_variances_cul <- plot_pls_variance(pls_sig_als_msc_cul,
+                                               numComp = numComps_sig_als_msc_cul)
 
 #Residuals
-plot_sig_als_msc_residuals <- plot_pls_residuals(pls_sig_als_msc,
-                                               numComp = numComps_sig_als_msc,
+plot_sig_als_msc_residuals_cul <- plot_pls_residuals(pls_sig_als_msc_cul,
+                                               numComp = numComps_sig_als_msc_cul,
+                                               wavenumberRange = c(800, 1800, 200)
+                                         )
+
+#Setup the number of components to be analysed
+numComps_sig_als_msc_cut <- pick_num_comp(pls_sig_als_msc_cut, 0.95)
+
+#Scatter plot
+plot_sig_als_msc_scatter_cut <- plot_pls_scatter(plsModel = pls_sig_als_msc_cut,
+                                     numComp = numComps_sig_als_msc_cut)
+
+#Coefficients plot
+plot_sig_als_msc_coefficients_cut <- plot_pls_coefficients(pls_sig_als_msc_cut,
+                                               numComp = numComps_sig_als_msc_cut,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
+                                                          )
+                                               )
+
+#Loadings plot
+plot_sig_als_msc_loadings_cut <- plot_pls_loadings(pls_sig_als_msc_cut,
+                                               numComp = 1,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[4]])[-1])
+                                                          )
+                                               )
+
+#Variance explained by different components
+plot_sig_als_msc_variances_cut <- plot_pls_variance(pls_sig_als_msc_cut,
+                                               numComp = numComps_sig_als_msc_cut)
+
+#Residuals
+plot_sig_als_msc_residuals_cut <- plot_pls_residuals(pls_sig_als_msc_cut,
+                                               numComp = numComps_sig_als_msc_cut,
                                                wavenumberRange = c(800, 1800, 200)
                                          )
 ```
@@ -1030,10 +933,15 @@ plot_sig_als_msc_residuals <- plot_pls_residuals(pls_sig_als_msc,
 #| fig-height: 12
 #| fig-dpi: 600
 #| warning: false
+#| message: false
 
- (plot_sg_alsmsc_spec | plot_sig_als_msc_scatter) /
-    (plot_sig_als_msc_variances | plot_sig_als_msc_coefficients) /
-    (plot_sig_als_msc_loadings | plot_sig_als_msc_residuals)
+ (plot_als_msc_spec_cul | plot_sig_als_msc_scatter_cul) /
+    (plot_sig_als_msc_variances_cul | plot_sig_als_msc_coefficients_cul) /
+    (plot_sig_als_msc_loadings_cul | plot_sig_als_msc_residuals_cul)
+
+ (plot_als_msc_spec_cut | plot_sig_als_msc_scatter_cut) /
+    (plot_sig_als_msc_variances_cut | plot_sig_als_msc_coefficients_cut) /
+    (plot_sig_als_msc_loadings_cut | plot_sig_als_msc_residuals_cut)
 ```
 
 ### Signature area: smoothing + 2^nd^ derivative
@@ -1043,35 +951,68 @@ plot_sig_als_msc_residuals <- plot_pls_residuals(pls_sig_als_msc,
 #| echo: false
 #| warning: false
 #Setup the number of components to be analysed
-numComps_sig_2nd <- pick_1se_comp(pls_sig_2nd)[[1]]
+numComps_sig_2nd_cul <- pick_num_comp(pls_sig_2nd_cul, 0.85)
 
 #Scatter plot
-plot_sig_2nd_scatter <- plot_pls_scatter(plsModel = pls_sig_2nd,
-                                     numComp = numComps_sig_2nd)
+plot_sig_2nd_scatter_cul <- plot_pls_scatter(plsModel = pls_sig_2nd_cul,
+                                     numComp = numComps_sig_2nd_cul)
 
 #Coefficients plot
-plot_sig_2nd_coefficients <- plot_pls_coefficients(pls_sig_2nd,
-                                               numComp = numComps_sig_2nd,
+plot_sig_2nd_coefficients_cul <- plot_pls_coefficients(pls_sig_2nd_cul,
+                                               numComp = numComps_sig_2nd_cul,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[9]])[-1])
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
                                                           )
                                                )
 
 #Loadings plot
-plot_sig_2nd_loadings <- plot_pls_loadings(pls_sig_2nd,
-                                               numComp = 3,
+plot_sig_2nd_loadings_cul <- plot_pls_loadings(pls_sig_2nd_cul,
+                                               numComp = 1,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[9]])[-1])
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
                                                           )
                                                )
 
 #Variance explained by different components
-plot_sig_2nd_variances <- plot_pls_variance(pls_sig_2nd,
-                                               numComp = numComps_sig_2nd)
+plot_sig_2nd_variances_cul <- plot_pls_variance(pls_sig_2nd_cul,
+                                               numComp = numComps_sig_2nd_cul)
 
 #Residuals
-plot_sig_2nd_residuals <- plot_pls_residuals(pls_sig_2nd,
-                                               numComp = numComps_sig_2nd,
+plot_sig_2nd_residuals_cul <- plot_pls_residuals(pls_sig_2nd_cul,
+                                               numComp = numComps_sig_2nd_cul,
+                                               wavenumberRange = c(800, 1800, 200)
+                                         )
+
+#Setup the number of components to be analysed
+numComps_sig_2nd_cut <- pick_num_comp(pls_sig_2nd_cut, 0.85)
+
+#Scatter plot
+plot_sig_2nd_scatter_cut <- plot_pls_scatter(plsModel = pls_sig_2nd_cut,
+                                     numComp = numComps_sig_2nd_cut)
+
+#Coefficients plot
+plot_sig_2nd_coefficients_cut <- plot_pls_coefficients(pls_sig_2nd_cut,
+                                               numComp = numComps_sig_2nd_cut,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
+                                                          )
+                                               )
+
+#Loadings plot
+plot_sig_2nd_loadings_cut <- plot_pls_loadings(pls_sig_2nd_cut,
+                                               numComp = 1,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[5]])[-1])
+                                                          )
+                                               )
+
+#Variance explained by different components
+plot_sig_2nd_variances_cut <- plot_pls_variance(pls_sig_2nd_cut,
+                                               numComp = numComps_sig_2nd_cut)
+
+#Residuals
+plot_sig_2nd_residuals_cut <- plot_pls_residuals(pls_sig_2nd_cut,
+                                               numComp = numComps_sig_2nd_cut,
                                                wavenumberRange = c(800, 1800, 200)
                                          )
 ```
@@ -1082,10 +1023,15 @@ plot_sig_2nd_residuals <- plot_pls_residuals(pls_sig_2nd,
 #| fig-height: 12
 #| fig-dpi: 600
 #| warning: false
+#| message: false
 
- (plot_sg_2nd_spec | plot_sig_2nd_scatter) /
-    (plot_sig_2nd_variances | plot_sig_2nd_coefficients) /
-    (plot_sig_2nd_loadings | plot_sig_2nd_residuals)
+ (plot_2nd_spec_cul | plot_sig_2nd_scatter_cul) /
+    (plot_sig_2nd_variances_cul | plot_sig_2nd_coefficients_cul) /
+    (plot_sig_2nd_loadings_cul | plot_sig_2nd_residuals_cul)
+
+ (plot_2nd_spec_cut | plot_sig_2nd_scatter_cut) /
+    (plot_sig_2nd_variances_cut | plot_sig_2nd_coefficients_cut) /
+    (plot_sig_2nd_loadings_cut | plot_sig_2nd_residuals_cut)
 ```
 
 ```{r}
@@ -1187,82 +1133,51 @@ rm(loopI,
 data_preprocessed_ftir_gcms_malformation <- vector(mode = 'list',
                                                    length = length(data_preprocessed))
 
-#Whole range Raw spectra
+#Signature area Raw spectra
 data_preprocessed_ftir_gcms_malformation[[1]] <- matrix_malformation(
   batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_raw$fitted.values[,, numComps_raw],
-  GCMSValuesMat = pcaMatHeight[,11:12],
-  cultivarsData = cultivarsCom,
-  cuttingsData = cuttingsRaw,
-  cuttingsBatch = cuttingsBatchInfo)
-
-#Whole range MSC spectra
-data_preprocessed_ftir_gcms_malformation[[2]] <- matrix_malformation(
-  batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_msc$fitted.values[,, numComps_msc],
-  GCMSValuesMat = pcaMatHeight[,11:12],
-  cultivarsData = cultivarsCom,
-  cuttingsData = cuttingsRaw,
-  cuttingsBatch = cuttingsBatchInfo)
-
-#Whole range ALS spectra
-data_preprocessed_ftir_gcms_malformation[[3]] <- matrix_malformation(
-  batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_als$fitted.values[,, numComps_als],
-  GCMSValuesMat = pcaMatHeight[,11:12],
-  cultivarsData = cultivarsCom,
-  cuttingsData = cuttingsRaw,
-  cuttingsBatch = cuttingsBatchInfo)
-
-#Whole range ALS-MSC spectra
-data_preprocessed_ftir_gcms_malformation[[4]] <- matrix_malformation(
-  batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_als_msc$fitted.values[,, numComps_als_msc],
-  GCMSValuesMat = pcaMatHeight[,11:12],
-  cultivarsData = cultivarsCom,
-  cuttingsData = cuttingsRaw,
-  cuttingsBatch = cuttingsBatchInfo)
-
-#Whole range 2nd derivative spectra
-data_preprocessed_ftir_gcms_malformation[[5]] <- matrix_malformation(
-  batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_2nd$fitted.values[,, numComps_2nd],
+  PLSFittedValues = c(pls_sig_raw_cul$fitted.values[,, numComps_raw_cul],
+                      pls_sig_raw_cut$fitted.values[,, numComps_raw_cut]),
   GCMSValuesMat = pcaMatHeight[,11:12],
   cultivarsData = cultivarsCom,
   cuttingsData = cuttingsRaw,
   cuttingsBatch = cuttingsBatchInfo)
 
 #Signature area MSC spectra
-data_preprocessed_ftir_gcms_malformation[[6]] <- matrix_malformation(
+data_preprocessed_ftir_gcms_malformation[[2]] <- matrix_malformation(
   batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_sig_msc$fitted.values[,, numComps_sig_msc],
+  PLSFittedValues = c(pls_sig_msc_cul$fitted.values[,, numComps_sig_msc_cul],
+                      pls_sig_msc_cut$fitted.values[,, numComps_sig_msc_cut]),
   GCMSValuesMat = pcaMatHeight[,11:12],
   cultivarsData = cultivarsCom,
   cuttingsData = cuttingsRaw,
   cuttingsBatch = cuttingsBatchInfo)
 
 #Signature area ALS spectra
-data_preprocessed_ftir_gcms_malformation[[7]] <- matrix_malformation(
+data_preprocessed_ftir_gcms_malformation[[3]] <- matrix_malformation(
   batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_sig_als$fitted.values[,, numComps_sig_als],
+  PLSFittedValues = c(pls_sig_als_cul$fitted.values[,, numComps_sig_als_cul],
+                      pls_sig_als_cut$fitted.values[,, numComps_sig_als_cut]),
   GCMSValuesMat = pcaMatHeight[,11:12],
   cultivarsData = cultivarsCom,
   cuttingsData = cuttingsRaw,
   cuttingsBatch = cuttingsBatchInfo)
 
 #Signature area ALS-MSC spectra
-data_preprocessed_ftir_gcms_malformation[[8]] <- matrix_malformation(
+data_preprocessed_ftir_gcms_malformation[[4]] <- matrix_malformation(
   batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_sig_als_msc$fitted.values[,, numComps_sig_als_msc],
+  PLSFittedValues = c(pls_sig_als_msc_cul$fitted.values[,, numComps_sig_als_msc_cul],
+                      pls_sig_als_msc_cut$fitted.values[,, numComps_sig_als_msc_cut]),
   GCMSValuesMat = pcaMatHeight[,11:12],
   cultivarsData = cultivarsCom,
   cuttingsData = cuttingsRaw,
   cuttingsBatch = cuttingsBatchInfo)
 
 #Signature area 2nd derivative spectra
-data_preprocessed_ftir_gcms_malformation[[9]] <- matrix_malformation(
+data_preprocessed_ftir_gcms_malformation[[5]] <- matrix_malformation(
   batchInfoMat = pcaMatHeight[,1:10],
-  PLSFittedValues = pls_sig_2nd$fitted.values[,, numComps_sig_2nd],
+  PLSFittedValues = c(pls_sig_2nd_cul$fitted.values[,, numComps_sig_2nd_cul],
+                      pls_sig_2nd_cut$fitted.values[,, numComps_sig_2nd_cut]),
   GCMSValuesMat = pcaMatHeight[,11:12],
   cultivarsData = cultivarsCom,
   cuttingsData = cuttingsRaw,
@@ -1334,7 +1249,7 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
 
 ```
 
-### Original spectra
+### Raw spectra
 
 ```{r}
 #| label: overview on GCMS and FTIR - raw spectra - figure
@@ -1348,7 +1263,7 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
   (plot_GCMS_Plant[[1]]|plot_PLS_Fitted_Plant[[1]])
 ```
 
-### The whole range: MSC
+### Signature area: MSC
 
 ```{r}
 #| label: overview on GCMS and FTIR - msc spectra - figure
@@ -1362,7 +1277,7 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
   (plot_GCMS_Plant[[2]]|plot_PLS_Fitted_Plant[[2]])
 ```
 
-### The whole range: smoothing + ALS
+### Signature area: ALS
 
 ```{r}
 #| label: overview on GCMS and FTIR - als spectra - figure
@@ -1376,7 +1291,7 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
   (plot_GCMS_Plant[[3]]|plot_PLS_Fitted_Plant[[3]])
 ```
 
-### The whole range: smoothing + ALS + MSC
+### Signature area: ALS + MSC
 
 ```{r}
 #| label: overview on GCMS and FTIR - als msc spectra - figure
@@ -1390,7 +1305,7 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
   (plot_GCMS_Plant[[4]]|plot_PLS_Fitted_Plant[[4]])
 ```
 
-### The whole range: smoothing + 2^nd^ derivative
+### Signature area: 2^nd^ derivative
 
 ```{r}
 #| label: overview on GCMS and FTIR - 2nd derivative spectra - figure
@@ -1402,62 +1317,6 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
 (plot_GCMS[[5]]|plot_PLS_Fitted[[5]]) /
   (plot_GCMS_Materials[[5]]|plot_PLS_Fitted_Materials[[5]]) /
   (plot_GCMS_Plant[[5]]|plot_PLS_Fitted_Plant[[5]])
-```
-
-### Signature area: MSC
-
-```{r}
-#| label: overview on GCMS and FTIR - sig msc spectra - figure
-#| fig-width: 8
-#| fig-height: 12
-#| fig-dpi: 600
-#| warning: false
-
-(plot_GCMS[[6]]|plot_PLS_Fitted[[6]]) /
-  (plot_GCMS_Materials[[6]]|plot_PLS_Fitted_Materials[[6]]) /
-  (plot_GCMS_Plant[[6]]|plot_PLS_Fitted_Plant[[6]])
-```
-
-### Signature area: smoothing + ALS
-
-```{r}
-#| label: overview on GCMS and FTIR - sig als spectra - figure
-#| fig-width: 8
-#| fig-height: 12
-#| fig-dpi: 600
-#| warning: false
-
-(plot_GCMS[[7]]|plot_PLS_Fitted[[7]]) /
-  (plot_GCMS_Materials[[7]]|plot_PLS_Fitted_Materials[[7]]) /
-  (plot_GCMS_Plant[[7]]|plot_PLS_Fitted_Plant[[7]])
-```
-
-### Signature area: smoothing + ALS + MSC
-
-```{r}
-#| label: overview on GCMS and FTIR - sig als msc spectra - figure
-#| fig-width: 8
-#| fig-height: 12
-#| fig-dpi: 600
-#| warning: false
-
-(plot_GCMS[[8]]|plot_PLS_Fitted[[8]]) /
-  (plot_GCMS_Materials[[8]]|plot_PLS_Fitted_Materials[[8]]) /
-  (plot_GCMS_Plant[[8]]|plot_PLS_Fitted_Plant[[8]])
-```
-
-### Signature area: smoothing + 2^nd^ derivative
-
-```{r}
-#| label: overview on GCMS and FTIR - sig 2nd derivative spectra - figure
-#| fig-width: 8
-#| fig-height: 12
-#| fig-dpi: 600
-#| warning: false
-
-(plot_GCMS[[9]]|plot_PLS_Fitted[[9]]) /
-  (plot_GCMS_Materials[[9]]|plot_PLS_Fitted_Materials[[9]]) /
-  (plot_GCMS_Plant[[9]]|plot_PLS_Fitted_Plant[[9]])
 ```
 
 ## Malformation rates of pollen grains

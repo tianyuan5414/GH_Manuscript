@@ -3,12 +3,11 @@
 
 plot_box_plant <- function(dataMat,
                      variableName){
+  rowIndex <- which(dataMat[['Materials']] == 'cut')
   if (variableName == 'PLS') {
     yLabel <- 'PLS predicted values'
-    rowIndex <- which(dataMat[['Materials']] == 'cut')
   } else {
     yLabel <- 'UV GC-MS (ng/100gr)'
-    rowIndex <- 1:nrow(dataMat)
   }
   
   plot_output <- ggplot() +
@@ -16,13 +15,15 @@ plot_box_plant <- function(dataMat,
                  aes(x = factor(as.numeric(Sample_ID), levels = c(1:6)),
                      y = dataMat[[variableName]][rowIndex],
                      fill = factor(Treatment, levels = c('UV', 'CON'))),
-                 outliers = FALSE,
+                 outlier.shape = NA,
+                 coef = Inf,
                  alpha = 0.6) +
     geom_boxplot(data = dataMat[which(dataMat[['Materials']] == 'cul'),],
                  aes(x = 'Cultivars',
                      y = dataMat[[variableName]][which(dataMat[['Materials']] == 'cul')],
                      fill = factor(Treatment, levels = c('UV', 'CON'))),
-                 outliers = FALSE,
+                 outlier.shape = NA,
+                 coef = Inf,
                  alpha = 0.6) +
     geom_jitter(data = dataMat[which(dataMat[['Materials']] == 'cul'),],
                 aes(x = 'Cultivars',

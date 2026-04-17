@@ -89,6 +89,7 @@ source(here::here("Code_R", "PLS_Experssion.r"))
 source(here::here("Code_R", "Matrix_Malformation.r"))
 source(here::here("Code_R", "Plot_Box.r"))
 source(here::here("Code_R", "Plot_Box_Plant.r"))
+source(here::here("Code_R", "Pick_Num_Components.r"))
 #-----------------------------------------------------------
 # 4. Interactive-only: ggplot theme
 #-----------------------------------------------------------
