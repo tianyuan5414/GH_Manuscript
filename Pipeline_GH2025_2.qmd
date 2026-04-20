@@ -1,0 +1,917 @@
+---
+title: "UAC signals in Pine cuttings and cultivars - refined pipeline"
+author: "Tianyuan"
+format: html
+editor: visual
+execute:
+  warning: false
+---
+
+```{r}
+#| label: load Packages
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+#Load palaeochem package
+library(palaeochem)
+#Load arial font into R
+library(showtext)
+font_add(family = "arial", regular = file.path('Packages_R', 'Fonts', 'arial.ttf'))
+showtext_auto()
+
+#Packages needed in Vivian's code
+source(
+  file.path(
+    "Code_R", "00_Config_file.r"
+  )
+)
+
+rm(package_list)
+```
+
+```{r}
+#| label: load FTIRS pectra
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+
+#Read raw FTIR spectra
+rawFTIRSpec <- read.csv(file = file.path('Data_R',
+                                         'Original_Spectra.csv'),
+                        row.names = 1)
+colnames(rawFTIRSpec)[-1:-10] <- substring(colnames(rawFTIRSpec)[-1:-10], 2)
+```
+
+## Original FTIR spectra
+
+The original FTIR spectra are between 4000 and 600 cm^-1^, with wavenumber interval of 4 cm^-1^. And the raw spectra from potted cultivars and branch cuttings looks like:
+
+```{r}
+#| label: Figure full raw spectra
+#| echo: false
+#| warning: false
+#| message: false
+
+plot_original_spec_cul <-
+rawFTIRSpec[rawFTIRSpec[, 5] == 'cul', c(-1:-2,-4:-10)] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+  labs(title = 'Potted cultivars',
+       x = '')
+
+plot_original_spec_cut <-
+rawFTIRSpec[rawFTIRSpec[, 5] == 'cut', c(-1:-2,-4:-10)] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+    labs(title = 'Branch cuttings')
+
+plot_original_spec_cul /
+  plot_original_spec_cut
+
+```
+
+## Pretreating raw FTIR spectra - smoothing + 2nd derivatives
+
+The raw FTIR spectra were firstly smoothed using Savitzky-Golay filter (width = 7, poly = 2). And second derivatives were calculated from smoothed spectra (in EMSC::SavitzkyGolay function, deriv = 2). Only signature area (800 - 1800 cm^-1^) was used in following analysis. The pre-treated spectra looked like:
+
+```{r}
+#| label: pretreating FTIR spectra (smoothing + 2nd derivatives)
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+
+#5 - smoothing + 2nd derivative
+processing_steps_ftir5 <- list(
+  functions = c(
+    get_savitzkygolay,
+    get_filter_wavenumbers
+  ),
+  parameters = list(
+    list(width = 7, poly = 2, deriv = 2),
+    list(min_wn = 800, max_wn = 1800)
+  )
+)
+
+data_preprocessed <- list(
+  cbind(
+    unique_id = rawFTIRSpec[, 3],
+    corrected5 = run_preprocessing_list(rawFTIRSpec[, c(-1:-2,-4:-10)], processing_steps_ftir5)
+  )
+)
+data_preprocessed <- lapply(data_preprocessed, as.data.frame)
+for (loopI in 1:length(data_preprocessed)) {
+  data_preprocessed[[loopI]][, -1] <-
+    apply(data_preprocessed[[loopI]][, -1], c(1,2), as.numeric)
+}
+
+rm(processing_steps_ftir5)
+```
+
+```{r}
+#| label: signature 2nd derivative
+#| echo: true
+#| output: true
+#| warning: false
+#| message: false
+plot_2nd_spec_cul <-
+data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+  labs(title = 'Potted cultivars',
+       x = '')
+
+plot_2nd_spec_cut <-
+data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
+  group_var = 'unique_id',
+  col_var = 'unique_id'
+) +
+    labs(title = 'Branch cuttings')
+
+plot_2nd_spec_cul /
+  plot_2nd_spec_cut
+```
+
+## Input GCMS signals
+
+UAC GCMS signals were input and merged with FTIR spectra according to their batch information
+
+```{r}
+#| label: read GCMS
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+#GC-MS data on cuttings and pot cultivars
+GCDataRawCut <- as.matrix(read.csv(
+  file.path('Data_R', '04_11_2025_gc_cutting_data_2025.csv'),
+  header = TRUE,
+  row.names = 1))
+GCDataRawCul <- as.matrix(read.csv(
+  file.path('Data_R', '01_07_2025_gc_cultivar_data_2025.csv'),
+  header = TRUE,
+  row.names = 1))
+
+#Combine these two raw datasets, with batch information
+GCData <- rbind(GCDataRawCut[, c(8, 10:14)],
+                cbind(GCDataRawCul[, c(8, 10:12)], 
+                      sampling_number = NA, 
+                      GCDataRawCul[, 13])
+)
+
+#Exclude the last batch (u), as an unexpected crash happened before this
+#batch, making reseult from this batch abnormal
+GCData <- GCData[-which(GCData[, 6] == 'u'),]
+
+#Loop to calculate the mean values for each sample
+uniqueBatchInfo <- unique(GCData[, 2:5])
+
+#Create a matrix to fill in the mean GC-MS signals
+GCDataMean <- matrix(nrow = nrow(uniqueBatchInfo),
+                     ncol = ncol(uniqueBatchInfo) + 2,
+                     dimnames = list(c(),
+                                     c('calibrated',
+                                       'sd',
+                                       colnames(uniqueBatchInfo)
+                                     )
+                     )
+)
+
+#Add batch number to the GCMS data matrix
+GCDataMean[, 3:ncol(GCDataMean)] <- uniqueBatchInfo
+
+#Loop to calculate the mean signals of GCMS duplicates
+for (loopI in 1:nrow(GCDataMean)) {
+  
+  #Check wheter current sample is cutting or pot cultivar 
+  if (is.na(GCDataMean[loopI, 6])) {
+    
+    #Mean and sd for pot cultivar
+    GCDataMean[loopI, 1] <- mean(as.numeric(
+      GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                     (GCData[, 3] == GCDataMean[loopI, 4]) &
+                     (GCData[, 4] == GCDataMean[loopI, 5]) 
+    )
+    , 1])
+    )
+    GCDataMean[loopI, 2] <- sd(as.numeric(
+      GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                     (GCData[, 3] == GCDataMean[loopI, 4]) &
+                     (GCData[, 4] == GCDataMean[loopI, 5])
+    )
+    , 1])
+    )
+    
+  }else {
+    
+    #Mean and sd for cutting
+    GCDataMean[loopI, 1] <- mean(as.numeric(
+      GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                     (GCData[, 3] == GCDataMean[loopI, 4]) &
+                     (GCData[, 4] == GCDataMean[loopI, 5]) &
+                     (GCData[, 5] == GCDataMean[loopI, 6])
+    )
+    , 1])
+    )
+    GCDataMean[loopI, 2] <- sd(as.numeric(
+      GCData[which((GCData[, 2] == GCDataMean[loopI, 3]) &
+                     (GCData[, 3] == GCDataMean[loopI, 4]) &
+                     (GCData[, 4] == GCDataMean[loopI, 5]) &
+                     (GCData[, 5] == GCDataMean[loopI, 6])
+    )
+    , 1])
+    )
+    
+  }
+}
+
+#Transfer the matrix back to data frame, and transfer values to number if necessary
+GCDataMean <- as.data.frame(GCDataMean)
+GCDataMean[, 1] <- as.numeric(GCDataMean[, 1])
+
+#Create a vector to stroe the index for batch information matching
+tempInd <- vector('numeric', length = nrow(rawFTIRSpec))
+
+#Loop to match the batch information between GC-MS and FTIR datasets
+for (loopI in 1:nrow(rawFTIRSpec)) {
+
+#Check whether current sample is pot cultivar
+if (rawFTIRSpec[loopI, 5] == 'cul') {
+  
+  #Check whether current FTIR spectrum has any GCMS signal
+  if (any((GCDataMean[, 3] == rawFTIRSpec[loopI, 6]) &
+          (GCDataMean[, 4] == rawFTIRSpec[loopI, 7]) &
+          (GCDataMean[, 5] == rawFTIRSpec[loopI, 8]) &
+          (is.na(GCDataMean[, 6]))
+  )
+  ) {
+    
+    #Record the FTIR matrix row index for current GCMS signal
+    tempInd[loopI] <- which((GCDataMean[, 3] == rawFTIRSpec[loopI, 6]) &
+                              (GCDataMean[, 4] == rawFTIRSpec[loopI, 7]) &
+                              (GCDataMean[, 5] == rawFTIRSpec[loopI, 8]) &
+                              (is.na(GCDataMean[, 6])))
+    
+  }else {
+    
+    #Record nothing if there is no match between current FTIR specrum and
+      #any GCMS signal
+    tempInd[loopI] <- NA
+    
+  }
+  
+#Check whether current sample is cutting
+} else if (rawFTIRSpec[loopI, 5] == 'cut') {
+  
+  #Check whether current FTIR spectrum has any GCMS signal
+  if (any((GCDataMean[, 3] == rawFTIRSpec[loopI, 6]) &
+          (GCDataMean[, 4] == rawFTIRSpec[loopI, 7]) &
+          (GCDataMean[, 5] == rawFTIRSpec[loopI, 8]) &
+          (GCDataMean[, 6] == rawFTIRSpec[loopI, 9])
+  )
+  ) {
+    
+    #Record the FTIR matrix row index for current GCMS signal
+    tempInd[loopI] <- which((GCDataMean[, 3] == rawFTIRSpec[loopI, 6]) &
+                              (GCDataMean[, 4] == rawFTIRSpec[loopI, 7]) &
+                              (GCDataMean[, 5] == rawFTIRSpec[loopI, 8]) &
+                              (GCDataMean[, 6] == rawFTIRSpec[loopI, 9]))
+    
+  }else {
+    
+    #Record nothing if there is no match between current FTIR spectrum and
+      #any GCMS signal
+    tempInd[loopI] <- NA
+    
+  }
+  
+} else {
+  
+  #Record nothing if there is no match between current FTIR spectrum and
+    #any GCMS signal
+  tempInd[loopI] <- NA
+  
+}
+}
+
+#Attach GCMS signals to  peak statistics (height or area)
+pcaMatHeight <- cbind(rawFTIRSpec,
+                    GCDataMean[tempInd, c(1,2)])[, -11:-1772]
+colnames(pcaMatHeight)[11] <- 'pCA_ng_grain'
+pcaMatHeight <- pcaMatHeight[!is.na(pcaMatHeight[, 11]),]
+
+rm(loopI,
+   tempInd)
+```
+
+## PLS analysis between FTIR spectra and GCMS signals
+
+In this section, the GCMS signals were input into PLS model as response variable, and pretreated FTIR spectral signals were input as independent variables. The decision on the number of component is made according to the accumulated variance explained by components, and the number is selected when \>85% variance is explained.
+
+```{r}
+#| label: run PLS
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+
+#Check whetether there is already a RData file containing the PLS model, skip the lines generating the PLS model and read the archives driectly if true
+if (file.exists(file.path('Output_R', 'pls_sig_2nd_cul.RData'))) {
+  load(file.path('Output_R', 'pls_sig_2nd_cul.RData'))
+  
+  load(file.path('Output_R', 'pls_sig_2nd_cut.RData'))
+}else {
+  pls_sig_2nd_cul <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[1]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cul'),],
+                   pred_col = 'pCA_ng_grain')
+  
+  
+  pls_sig_2nd_cut <- run_pls_mod(cbind(pcaMatHeight[,1:10],
+                    data_preprocessed[[1]][, -1],
+                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),],
+                   pred_col = 'pCA_ng_grain')
+  
+  #Save the pls results as .RData indepecdently (so that they do not exceed the 100 MB limitation from GitHub)
+  save(pls_sig_2nd_cul, file = file.path('Output_R', 'pls_sig_2nd_cul.RData'))
+  
+  save(pls_sig_2nd_cut, file = file.path('Output_R', 'pls_sig_2nd_cut.RData'))
+}
+```
+
+```{r}
+#| label: pls - sig 2nd derivative spectra
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+#Setup the number of components to be analysed
+numComps_sig_2nd_cul <- pick_num_comp(pls_sig_2nd_cul, 0.85)
+
+#Scatter plot
+plot_sig_2nd_scatter_cul <- plot_pls_scatter(plsModel = pls_sig_2nd_cul,
+                                     numComp = numComps_sig_2nd_cul)
+
+#Coefficients plot
+plot_sig_2nd_coefficients_cul <- plot_pls_coefficients(pls_sig_2nd_cul,
+                                               numComp = numComps_sig_2nd_cul,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
+                                                          )
+                                               )
+
+#Loadings plot
+plot_sig_2nd_loadings_cul <- plot_pls_loadings(pls_sig_2nd_cul,
+                                               numComp = 1,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
+                                                          )
+                                               )
+
+#Variance explained by different components
+plot_sig_2nd_variances_cul <- plot_pls_variance(pls_sig_2nd_cul,
+                                               numComp = numComps_sig_2nd_cul)
+
+#Residuals
+plot_sig_2nd_residuals_cul <- plot_pls_residuals(pls_sig_2nd_cul,
+                                               numComp = numComps_sig_2nd_cul,
+                                               wavenumberRange = c(800, 1800, 200)
+                                         )
+
+#Setup the number of components to be analysed
+numComps_sig_2nd_cut <- pick_num_comp(pls_sig_2nd_cut, 0.85)
+
+#Scatter plot
+plot_sig_2nd_scatter_cut <- plot_pls_scatter(plsModel = pls_sig_2nd_cut,
+                                     numComp = numComps_sig_2nd_cut)
+
+#Coefficients plot
+plot_sig_2nd_coefficients_cut <- plot_pls_coefficients(pls_sig_2nd_cut,
+                                               numComp = numComps_sig_2nd_cut,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
+                                                          )
+                                               )
+
+#Loadings plot
+plot_sig_2nd_loadings_cut <- plot_pls_loadings(pls_sig_2nd_cut,
+                                               numComp = 1,
+                                               wavenumberRange = c(800, 1800, 200),
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
+                                                          )
+                                               )
+
+#Variance explained by different components
+plot_sig_2nd_variances_cut <- plot_pls_variance(pls_sig_2nd_cut,
+                                               numComp = numComps_sig_2nd_cut)
+
+#Residuals
+plot_sig_2nd_residuals_cut <- plot_pls_residuals(pls_sig_2nd_cut,
+                                               numComp = numComps_sig_2nd_cut,
+                                               wavenumberRange = c(800, 1800, 200)
+                                         )
+```
+
+```{r}
+#| label: pls - sig 2nd derivative spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| echo: false
+#| output: true
+#| warning: false
+#| message: false
+
+ (plot_2nd_spec_cul | plot_sig_2nd_scatter_cul) /
+    (plot_sig_2nd_variances_cul | plot_sig_2nd_coefficients_cul) /
+    (plot_sig_2nd_loadings_cul | plot_sig_2nd_residuals_cul)
+
+ (plot_2nd_spec_cut | plot_sig_2nd_scatter_cut) /
+    (plot_sig_2nd_variances_cut | plot_sig_2nd_coefficients_cut) /
+    (plot_sig_2nd_loadings_cut | plot_sig_2nd_residuals_cut)
+```
+
+```{r}
+#| label: combine malformation data with PLS and GCMS
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+#Read the cutting branch data, and replace all na with 0
+cuttingsRaw <- read.csv(file = 
+                          file.path('Data_R', 
+                                    'Malformations_Cuttings.csv'),
+                        row.names = 1)
+
+#Replace all NAs with 0
+cuttingsRaw[is.na(cuttingsRaw)] <- 0
+
+#Extract the batch information
+batchInfoTemp <- strsplit(x = cuttingsRaw[,1], split = '_')
+cuttingsBatchInfo <- cbind(rep('Cuttings', length(batchInfoTemp)),
+                           rep('2025', length(batchInfoTemp)),
+                           matrix(unlist(batchInfoTemp), ncol = 4, byrow = TRUE))
+colnames(cuttingsBatchInfo) <- c('Sample', 'Year', 'Frame', 'Treatment',
+                                 'Plant', 'Duplicate')
+
+#Delete unused variables
+rm(batchInfoTemp)
+
+#Read the cultivar branch data, and replace all na with 0
+cultivarsRaw <- read.csv(file = 
+                           file.path('Data_R', 
+                                     'Malformations_Cultivars.csv'),
+                         row.names = 1)
+
+#Replace all NAs with 0
+cultivarsRaw[is.na(cultivarsRaw)] <- 0
+
+#Extract the batch information
+batchInfoTemp <- strsplit(x = cultivarsRaw[,1], split = '_')
+cultivarsBatchInfo <- cbind(rep('Cultivars', length(batchInfoTemp)),
+                            matrix(unlist(batchInfoTemp), ncol = 4, byrow = TRUE))
+colnames(cultivarsBatchInfo) <- c('Sample', 'Year', 'Frame', 'Treatment',
+                                  'Plant')
+
+#Delete unused variables
+rm(batchInfoTemp)
+
+#Combine counting results in duplicated samples, by summing them up
+tempVec <- unique(cultivarsRaw[, 1])
+
+#Matrix for all malformation data
+tempMat <- matrix(nrow = length(tempVec),
+                  ncol = ncol(cultivarsRaw),
+                  dimnames = list(c(),
+                                  colnames(cultivarsRaw)))
+
+#Matrix for all batch information on malformation data
+tempMat2 <- matrix(nrow = length(tempVec),
+                   ncol = ncol(cultivarsBatchInfo),
+                   dimnames = list(c(),
+                                   colnames(cultivarsBatchInfo)))
+
+#Fill sample label into matrix
+tempMat[, 1] <- tempVec
+
+#Loop to add duplicates together
+for (loopI in 1:nrow(tempMat)) {
+  
+  #Check  if there are duplicates in current sample
+  if (length(which(cultivarsRaw[, 1] == tempMat[loopI, 1])) > 1) {
+    
+    #Sum up all counting results among duplicates
+    tempMat[loopI, 2:ncol(tempMat)] <- apply(cultivarsRaw[
+      which(cultivarsRaw[, 1] == tempMat[loopI, 1]), 
+      2:ncol(tempMat)
+    ], 2, sum)
+    
+  }else{
+    
+    #Transfer couting results into matrix
+    tempMat[loopI, 2:ncol(tempMat)] <- cultivarsRaw[
+      which(cultivarsRaw[, 1] == tempMat[loopI, 1]), 2:ncol(tempMat)
+    ]
+    
+  }
+  
+  #Record the corresponding batch information
+  tempMat2[loopI,] <- cultivarsBatchInfo[which(cultivarsRaw[, 1] == tempMat[loopI, 1])[1],]
+  
+}
+
+#Combine batch information with counting results
+cultivarsCom <- cbind(tempMat2, tempMat[, -1])
+
+rm(loopI,
+   tempMat,
+   tempMat2,
+   tempVec)
+
+#Combine malformation data with PLS fitted results from different pretreatment methodologies
+data_preprocessed_ftir_gcms_malformation <- vector(mode = 'list',
+                                                   length = length(data_preprocessed))
+
+#Signature area 2nd derivative spectra
+data_preprocessed_ftir_gcms_malformation[[1]] <- matrix_malformation(
+  batchInfoMat = pcaMatHeight[,1:10],
+  PLSFittedValues = c(pls_sig_2nd_cul$fitted.values[,, numComps_sig_2nd_cul],
+                      pls_sig_2nd_cut$fitted.values[,, numComps_sig_2nd_cut]),
+  GCMSValuesMat = pcaMatHeight[,11:12],
+  cultivarsData = cultivarsCom,
+  cuttingsData = cuttingsRaw,
+  cuttingsBatch = cuttingsBatchInfo)
+```
+
+## Overviews on GC-MS signals and FTIR PLS fitted values
+
+GC-MS signals and PLS fitted values from FTIR spectra were shown in box plots, and were further sub-divided according to UV and Control groups.
+
+```{r}
+#| label: preperation on presenting GC-MS and FTIR data
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+
+#Overall plot on PLS fitted values
+plot_PLS_Fitted <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_PLS_Fitted)) {
+  plot_PLS_Fitted[[loopI]] <- plot_box(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'PLS')
+}
+
+#Plot groupped by potted cultivars and branch cuttings
+plot_PLS_Fitted_Materials <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_PLS_Fitted)) {
+  plot_PLS_Fitted_Materials[[loopI]] <- plot_box(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'PLS',
+                                       groupName = TRUE)
+}
+
+#Overall plot on GCMS signals
+plot_GCMS <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_GCMS)) {
+  plot_GCMS[[loopI]] <- plot_box(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'GCMS')
+}
+
+#Plot groupped by potted cultivars and branch cuttings
+plot_GCMS_Materials <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_GCMS_Materials)) {
+  plot_GCMS_Materials[[loopI]] <- plot_box(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'GCMS',
+                                       groupName = TRUE)
+}
+
+#Plant-groupped PLS fitted values
+plot_PLS_Fitted_Plant <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_PLS_Fitted_Plant)) {
+  plot_PLS_Fitted_Plant[[loopI]] <- plot_box_plant(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[1]],
+                                       variableName = 'PLS')
+}
+
+#Plant-groupped GCMS signals
+plot_GCMS_Plant <- vector(mode = 'list',
+                          length = length(data_preprocessed))
+
+for (loopI in 1:length(plot_GCMS_Plant)) {
+  plot_GCMS_Plant[[loopI]] <- plot_box_plant(dataMat = data_preprocessed_ftir_gcms_malformation[[loopI]][[2]],
+                                       variableName = 'GCMS')
+}
+
+```
+
+```{r}
+#| label: overview on GCMS and FTIR - 2nd derivative spectra - figure
+#| fig-width: 8
+#| fig-height: 12
+#| fig-dpi: 600
+#| echo: false
+#| output: true
+#| warning: false
+#| message: false
+
+(plot_GCMS[[1]]|plot_PLS_Fitted[[1]]) /
+  (plot_GCMS_Materials[[1]]|plot_PLS_Fitted_Materials[[1]]) /
+  (plot_GCMS_Plant[[1]]|plot_PLS_Fitted_Plant[[1]])
+```
+
+## Malformation rates of pollen grains
+
+Counting results on malformation rate were input and merged with GC-MS and FTIR signals. An independent figure were plotted here to show the variations of malformation rates among donor plants.
+
+```{r}
+#| label: preperation on malformation plotting
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+#Calculate malformation rates in pot cultivars
+tempVec <- (cultivarsRaw[, 15] - cultivarsRaw[, 2])/ cultivarsRaw[, 2]
+cultivarMean <- vector(length = 4)
+cultivarMean[1] <- mean(tempVec[which(cultivarsBatchInfo[, 4] == 'UV')])
+cultivarMean[2] <- sd(tempVec[which(cultivarsBatchInfo[, 4] == 'UV')])
+cultivarMean[3] <- mean(tempVec[which(cultivarsBatchInfo[, 4] == 'CON')])
+cultivarMean[4] <- sd(tempVec[which(cultivarsBatchInfo[, 4] == 'CON')])
+
+#Point plot to compare ratios between con and uv treatment, on different plants
+cuttingsPlantsPlot <-
+  ggplot() +
+  geom_point(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
+             aes(x = CON_Mal, y = UV_Mal, col = Plant)) +
+  geom_point(aes(x = cultivarMean[3] , y = cultivarMean[1], 
+                 color = 'Cultivars')) +
+  geom_errorbar(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
+                aes(x = CON_Mal, y = UV_Mal, col = Plant,
+                    ymin = UV_Mal - UV_Mal_sd,
+                    ymax = UV_Mal + UV_Mal_sd),
+                linewidth = 1,
+                width = 0.01) +
+  geom_errorbar(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
+                aes(x = CON_Mal, y = UV_Mal, col = Plant,
+                    xmin = CON_Mal - CON_Mal_sd,
+                    xmax = CON_Mal + CON_Mal_sd),
+                linewidth = 1,
+                width = 0.01,
+                orientation = 'y') +
+  geom_errorbar(aes(x = cultivarMean[3] , y = cultivarMean[1], color = 'Cultivars',
+                    ymin = cultivarMean[1] - cultivarMean[2],
+                    ymax = cultivarMean[1] + cultivarMean[2]),
+                linewidth = 1,
+                width = 0.005) +
+  geom_errorbar(aes(x = cultivarMean[3] , y = cultivarMean[1], color = 'Cultivars',
+                    xmin = cultivarMean[3] - cultivarMean[4],
+                    xmax = cultivarMean[3] + cultivarMean[4]),
+                linewidth = 1,
+                width = 0.005,
+                orientation = 'y') +
+  geom_abline (slope=1, linetype = "dashed", color="grey") +
+  scale_x_continuous(limits = c(-0.05, 0.15), name = 'CON malformation percentage',
+                     breaks = seq(0, 0.15, by = 0.05)) +
+  scale_y_continuous(limits = c(-0.05, 0.25), name = 'UV malformation percentage',
+                     breaks = seq(0, 0.25, by = 0.05)) +
+  scale_color_manual(name = 'Plant',
+                     values = c('1' = brewer.pal(6, 'Set2')[1],
+                                '2' = brewer.pal(6, 'Set2')[2],
+                                '3' = brewer.pal(6, 'Set2')[3],
+                                '4' = brewer.pal(6, 'Set2')[4],
+                                '5' = brewer.pal(6, 'Set2')[5],
+                                '6' = brewer.pal(6, 'Set2')[6],
+                                'Cultivars' = 'black')) +
+  theme_classic() +
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
+    axis.title.x = element_text(size = 20, family = 'arial'),
+    axis.text.x = element_text(size = 16, family = 'arial'),
+    
+    axis.text.y = element_text(size = 20, family = 'arial'),
+    axis.title.y = element_text(size = 16, family = 'arial'),
+    legend.position = "inside",
+    legend.position.inside = c(0.8, 0.2),
+    legend.text = element_text(size = 14, family = 'arial')
+  )
+
+rm(tempVec)
+```
+
+```{r}
+#| label: malformation - figure
+#| fig-width: 8
+#| fig-height: 8
+#| fig-dpi: 600
+#| echo: false
+#| output: true
+#| warning: false
+#| message: false
+cuttingsPlantsPlot
+```
+
+## Student-t analysis on GC-MS signals and PLS fitted values from FTIR spectra
+
+For signals between different subgroups (UV/CONTROL, plant 1-6, cuttings/cultivars), student-t test is applied to describe the difference between two grouping creteria.
+
+```{r}
+#| label: Student-t test on GC-MS and FTIR PLS fitted values
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+#Adjust the GCMS data frame to indicate the material types in the last column 
+GCDataMeanAdj <- GCData[, -6]
+GCDataMeanAdj[which(!is.na(GCData[, 5])), 5] <- 'cut'
+GCDataMeanAdj[which(is.na(GCData[, 5])), 5] <- 'cul'
+
+#Remve whitespaces in GCMS and PLS data frame
+GCDataMeanAdj <- apply(GCDataMeanAdj, c(1,2), gsub, pattern = "\\s+", replacement = "")
+colnames(GCDataMeanAdj)[4:5] <- c('Plant', 'Materials')
+GCDataMeanAdj <- as.data.frame(GCDataMeanAdj)
+GCDataMeanAdj[, 1:2] <- apply(GCDataMeanAdj[, 1:2], c(1,2), as.numeric)
+
+PLSFTIRAdj <- data_preprocessed_ftir_gcms_malformation[[1]][[1]]
+PLSFTIRAdj <- apply(PLSFTIRAdj, c(1,2), gsub, pattern = "\\s+", replacement = "")
+colnames(PLSFTIRAdj)[8] <- c('Plant')
+PLSFTIRAdj <- as.data.frame(PLSFTIRAdj)
+PLSFTIRAdj[, 11:12] <- apply(PLSFTIRAdj[, 11:12], c(1,2), as.numeric)
+
+#Setup the information to be input into student-t analysis
+studTDataList <- list(
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    GCDataMeanAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj,
+    PLSFTIRAdj
+)
+studTDataListName <- c(
+  'UV and Control - GCMS',
+  'UV - Potted cultivars and branch cuttings - GCMS',
+  'Control - Potted cultivars and branch cuttings - GCMS',
+  'Potted cultivars - UV and Control - GCMS',
+  'Branch cuttings - UV and Control - GCMS',
+  'Donor plant 1 - UV and Control - GCMS',
+  'Donor plant 2 - UV and Control - GCMS',
+  'Donor plant 3 - UV and Control - GCMS',
+  'Donor plant 4 - UV and Control - GCMS',
+  'Donor plant 5 - UV and Control - GCMS',
+  'Donor plant 6 - UV and Control - GCMS',
+  'UV and Control - FTIR',
+  'UV - Potted cultivars and branch cuttings - FTIR',
+  'Control - Potted cultivars and branch cuttings - FTIR',
+  'Potted cultivars - UV and Control - FTIR',
+  'Branch cuttings - UV and Control - FTIR',
+  'Donor plant 1 - UV and Control - FTIR',
+  'Donor plant 2 - UV and Control - FTIR',
+  'Donor plant 3 - UV and Control - FTIR',
+  'Donor plant 4 - UV and Control - FTIR',
+  'Donor plant 5 - UV and Control - FTIR',
+  'Donor plant 6 - UV and Control - FTIR'
+  )
+studTVarNmae <- c(
+  rep('calibrated', 11),
+  rep('PLS', 11)
+)
+studTCreName1 <- c(
+  rep('Treatment', 3),
+  rep('Materials', 2),
+  rep('Plant', 6),
+  rep('Treatment', 3),
+  rep('Materials', 2),
+  rep('Plant', 6)
+)
+studTCre1 <- list(
+  c('UV', 'CON'),
+  'UV',
+  'CON',
+  'cul',
+  'cut',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  c('UV', 'CON'),
+  'UV',
+  'CON',
+  'cul',
+  'cut',
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6'
+)
+studTCreName2 <- c(
+  NA,
+  rep('Materials', 2),
+  rep('Treatment', 2),
+  rep('Materials', 6),
+  NA,
+  rep('Materials', 2),
+  rep('Treatment', 2),
+  rep('Materials', 6)
+)
+studTCre2 <- list(
+  NA,
+  c('cul', 'cut'),
+  c('cul', 'cut'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  'cut',
+  'cut',
+  'cut',
+  'cut',
+  'cut',
+  'cut',
+  NA,
+  c('cul', 'cut'),
+  c('cul', 'cut'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  'cut',
+  'cut',
+  'cut',
+  'cut',
+  'cut',
+  'cut'
+)
+studTCreName3 <- c(
+  rep(NA, 5),
+  rep('Treatment', 6),
+  rep(NA, 5),
+  rep('Treatment', 6)
+)
+studTCre3 <- list(
+  NA,
+  NA,
+  NA,
+  NA,
+  NA,
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  NA,
+  NA,
+  NA,
+  NA,
+  NA,
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  c('UV', 'CON'),
+  c('UV', 'CON')
+)
+
+#Student-t analysis
+studTAnaResuTab <- sig_test_stu_t(studTDataList,
+                                  studTDataListName,
+                                  studTVarNmae,
+                                  studTCreName1,
+                                  studTCre1,
+                                  studTCreName2,
+                                  studTCre2,
+                                  studTCreName3,
+                                  studTCre3)
+```
+
+```{r}
+#| label: show the significance test results
+knitr::kable(studTAnaResuTab)
+```
