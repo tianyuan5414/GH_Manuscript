@@ -915,3 +915,397 @@ studTAnaResuTab <- sig_test_stu_t(studTDataList,
 #| label: show the significance test results
 knitr::kable(studTAnaResuTab)
 ```
+
+## Donor plant comparison - mean and variance of malformation rates/GCMS/FTIR signals
+
+The malformation rate indicates plant's stability of mitosis process, including both its mean and sd. The GCMS/FTIR signals indicate the quantification of UAC within pollen grains, positively correlated to screening ability towards UV-B radiation. This section aims at exploring the relationship between malformation rate and GCMS/FTIR signals, by looking at their means and variances, with assumption that accumulation of UAC may contribute to more stable mitosis process.
+
+```{r}
+#| label: Mean and sd comparision
+#| echo: false
+#| output: false
+#| warning: false
+#| message: false
+#Remve whitespaces in GCMS and PLS data frame
+data_preprocessed_ftir_gcms_malformation[[1]][[2]] <- apply(data_preprocessed_ftir_gcms_malformation[[1]][[2]], c(1,2), gsub, pattern = "\\s+", replacement = "")
+colnames(data_preprocessed_ftir_gcms_malformation[[1]][[2]])[8] <- c('Plant')
+data_preprocessed_ftir_gcms_malformation[[1]][[2]] <- as.data.frame(data_preprocessed_ftir_gcms_malformation[[1]][[2]])
+data_preprocessed_ftir_gcms_malformation[[1]][[2]][, 14] <- as.numeric(data_preprocessed_ftir_gcms_malformation[[1]][[2]][, 14])
+
+#Setup the information to be input into student-t analysis
+meanSDCompDataList <- list(
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    data_preprocessed_ftir_gcms_malformation[[1]][[2]][which(data_preprocessed_ftir_gcms_malformation[[1]][[2]]$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    GCDataMeanAdj[which(GCDataMeanAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),],
+    PLSFTIRAdj[which(PLSFTIRAdj$Materials == 'cut'),]
+)
+meanSDCompDataListName <- c(
+  'Malformation - all',
+  'Malformation - UV',
+  'Malformation - Control',
+  'Malformation - UV - Plant 1',
+  'Malformation - UV - Plant 2',
+  'Malformation - UV - Plant 3',
+  'Malformation - UV - Plant 4',
+  'Malformation - UV - Plant 5',
+  'Malformation - UV - Plant 6',
+  'Malformation - CON - Plant 1',
+  'Malformation - CON - Plant 2',
+  'Malformation - CON - Plant 3',
+  'Malformation - CON - Plant 4',
+  'Malformation - CON - Plant 5',
+  'Malformation - CON - Plant 6',
+  'GCMS - all',
+  'GCMS - UV',
+  'GCMS - Control',
+  'GCMS - UV - Plant 1',
+  'GCMS - UV - Plant 2',
+  'GCMS - UV - Plant 3',
+  'GCMS - UV - Plant 4',
+  'GCMS - UV - Plant 5',
+  'GCMS - UV - Plant 6',
+  'GCMS - CON - Plant 1',
+  'GCMS - CON - Plant 2',
+  'GCMS - CON - Plant 3',
+  'GCMS - CON - Plant 4',
+  'GCMS - CON - Plant 5',
+  'GCMS - CON - Plant 6',
+  'FTIR - all',
+  'FTIR - UV',
+  'FTIR - Control',
+  'FTIR - UV - Plant 1',
+  'FTIR - UV - Plant 2',
+  'FTIR - UV - Plant 3',
+  'FTIR - UV - Plant 4',
+  'FTIR - UV - Plant 5',
+  'FTIR - UV - Plant 6',
+  'FTIR - CON - Plant 1',
+  'FTIR - CON - Plant 2',
+  'FTIR - CON - Plant 3',
+  'FTIR - CON - Plant 4',
+  'FTIR - CON - Plant 5',
+  'FTIR - CON - Plant 6'
+  )
+meanSDCompVarNmae <- c(
+  rep('Mal_Ratio', 15),
+  rep('calibrated', 15),
+  rep('PLS', 15)
+)
+meanSDCompCreName1 <- c(
+  NA,
+  rep('Treatment', 14),
+  NA,
+  rep('Treatment', 14),
+  NA,
+  rep('Treatment', 14)
+)
+meanSDCompCre1 <- c(
+  NA,
+  c('UV', 'CON'),
+  rep('UV', 6),
+  rep('CON', 6),
+  NA,
+  c('UV', 'CON'),
+  rep('UV', 6),
+  rep('CON', 6),
+  NA,
+  c('UV', 'CON'),
+  rep('UV', 6),
+  rep('CON', 6)
+)
+meanSDCompCreName2 <- c(
+  rep(NA, 3),
+  rep('Plant', 12),
+  rep(NA, 3),
+  rep('Plant', 12),
+  rep(NA, 3),
+  rep('Plant', 12)
+)
+meanSDCompCre2 <- c(
+  rep(NA, 3),
+  rep(as.character(1:6), 2),
+  rep(NA, 3),
+  rep(as.character(1:6), 2),
+  rep(NA, 3),
+  rep(as.character(1:6), 2)
+)
+
+meanSDCompMat <- mean_sd_com(meanSDCompDataList,
+                             meanSDCompDataListName,
+                             meanSDCompVarNmae,
+                             meanSDCompCreName1,
+                             meanSDCompCre1,
+                             meanSDCompCreName2,
+                             meanSDCompCre2)
+
+#Adjust the matrix into wide one
+meanSDCompMatAdj <- matrix(nrow = 45,
+                           ncol = 5,
+                           dimnames = list(c(),
+                                           c('Calculation_Method',
+                                             'Treatment',
+                                             'Plant',
+                                             'Mean',
+                                             'SD')))
+meanSDCompMatAdj[, 1] <- c(
+  rep('Malformation', 15),
+  rep('GCMS', 15),
+  rep('FTIR-PLS', 15)
+)
+meanSDCompMatAdj[, 2] <- c(
+  NA,
+  c('UV', 'CON'),
+  rep('UV', 6),
+  rep('CON', 6),
+  NA,
+  c('UV', 'CON'),
+  rep('UV', 6),
+  rep('CON', 6),
+  NA,
+  c('UV', 'CON'),
+  rep('UV', 6),
+  rep('CON', 6)
+)
+meanSDCompMatAdj[, 3] <- c(
+  rep(NA, 3),
+  rep(as.character(1:6), 2),
+  rep(NA, 3),
+  rep(as.character(1:6), 2),
+  rep(NA, 3),
+  rep(as.character(1:6), 2)
+)
+meanSDCompMatAdj[, 4:5] <- meanSDCompMat[, 2:3]
+
+meanSDCompMatAdjPlant <- cbind(meanSDCompMatAdj[4:15,2:4],
+                               Malformation_SD = meanSDCompMatAdj[4:15,5],
+                               GCMS = meanSDCompMatAdj[19:30,4],
+                               GCMS_SD = meanSDCompMatAdj[19:30,5],
+                               FTIR = meanSDCompMatAdj[34:45,4],
+                               FTIR_SD = meanSDCompMatAdj[34:45,5])
+colnames(meanSDCompMatAdjPlant)[3] <- 'Malformation'
+meanSDCompMatAdjPlant <- as.data.frame(meanSDCompMatAdjPlant)
+meanSDCompMatAdjPlant[,3:8] <- apply(meanSDCompMatAdjPlant[, 3:8], c(1,2), as.numeric)
+meanSDCompMatAdjPlantDiff <- cbind(Plant = meanSDCompMatAdjPlant[1:6, 2],
+                                   Malformation = meanSDCompMatAdjPlant[1:6,3] - 
+                                     meanSDCompMatAdjPlant[7:12,3],
+                                   Malformation_SD = meanSDCompMatAdjPlant[1:6,4] - 
+                                     meanSDCompMatAdjPlant[7:12,4],
+                                   GCMS = meanSDCompMatAdjPlant[1:6,5] - 
+                                     meanSDCompMatAdjPlant[7:12,5],
+                                   GCMS_SD = meanSDCompMatAdjPlant[1:6,6] - 
+                                     meanSDCompMatAdjPlant[7:12,6],
+                                   FTIR = meanSDCompMatAdjPlant[1:6,7] - 
+                                     meanSDCompMatAdjPlant[7:12,7],
+                                   FTIR_SD = meanSDCompMatAdjPlant[1:6,8] - 
+                                     meanSDCompMatAdjPlant[7:12,8])
+meanSDCompMatAdjPlantDiff <- as.data.frame(meanSDCompMatAdjPlantDiff)
+meanSDCompMatAdjPlantDiff[,2:7] <- apply(meanSDCompMatAdjPlantDiff[2:7], c(1,2), as.numeric)
+meanSDCompMatAdjPlantDiffSca <- meanSDCompMatAdjPlantDiff
+meanSDCompMatAdjPlantDiffSca[, -1] <- apply(meanSDCompMatAdjPlantDiffSca[,-1], 2, scale)
+
+#Scatter plot on malformation rate and GCMS signal, sub-groupped by donor plant
+plot_mean_com_mal_gcms <- ggplot(meanSDCompMatAdjPlant,
+                                 aes(x = GCMS,
+                                     y = Malformation)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  stat_poly_eq(aes(label = paste(after_stat(eq.label), 
+                                   after_stat(rr.label), 
+                                   sep = "*\", \"*")), 
+                 formula = y ~ x, parse = TRUE) +
+    labs(x = 'GC-MS (ng/150gr)',
+         y = 'Malformation rate') + 
+    theme_classic() + 
+    theme(plot.title = element_blank(), 
+          axis.title.y = element_text(size = 14, family = 'arial'),
+          axis.text.y = element_text(size = 12, family = 'arial'),
+          axis.title.x = element_text(size = 14, family = 'arial'),
+          axis.text.x = element_text(size = 12, family = 'arial'),
+          panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+    )
+
+plot_mean_com_mal_gcms_diff <-
+  ggplot(meanSDCompMatAdjPlantDiff,
+                                 aes(x = GCMS,
+                                     y = Malformation)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  stat_poly_eq(aes(label = paste(after_stat(eq.label), 
+                                   after_stat(rr.label), 
+                                   sep = "*\", \"*")), 
+                 formula = y ~ x, parse = TRUE) +
+    labs(x = 'GC-MS (ng/150gr) difference between UV and CON',
+         y = 'Malformation rate difference between UV and CON') + 
+    theme_classic() + 
+    theme(plot.title = element_blank(), 
+          axis.title.y = element_text(size = 14, family = 'arial'),
+          axis.text.y = element_text(size = 12, family = 'arial'),
+          axis.title.x = element_text(size = 14, family = 'arial'),
+          axis.text.x = element_text(size = 12, family = 'arial'),
+          panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+    )
+
+plot_mean_com_mal_ftir <- ggplot(meanSDCompMatAdjPlant,
+                                 aes(x = FTIR,
+                                     y = Malformation)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  stat_poly_eq(aes(label = paste(after_stat(eq.label), 
+                                   after_stat(rr.label), 
+                                   sep = "*\", \"*")), 
+                 formula = y ~ x, parse = TRUE) +
+    labs(x = 'PLS fitted values',
+         y = 'Malformation rate') + 
+    theme_classic() + 
+    theme(plot.title = element_blank(), 
+          axis.title.y = element_text(size = 14, family = 'arial'),
+          axis.text.y = element_text(size = 12, family = 'arial'),
+          axis.title.x = element_text(size = 14, family = 'arial'),
+          axis.text.x = element_text(size = 12, family = 'arial'),
+          panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+    )
+
+plot_mean_com_mal_ftir_diff <-
+  ggplot(meanSDCompMatAdjPlantDiff,
+                                 aes(x = FTIR,
+                                     y = Malformation)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  stat_poly_eq(aes(label = paste(after_stat(eq.label), 
+                                   after_stat(rr.label), 
+                                   sep = "*\", \"*")), 
+                 formula = y ~ x, parse = TRUE) +
+    labs(x = 'GC-MS (ng/150gr) difference between UV and CON',
+         y = 'Malformation rate difference between UV and CON') + 
+    theme_classic() + 
+    theme(plot.title = element_blank(), 
+          axis.title.y = element_text(size = 14, family = 'arial'),
+          axis.text.y = element_text(size = 12, family = 'arial'),
+          axis.title.x = element_text(size = 14, family = 'arial'),
+          axis.text.x = element_text(size = 12, family = 'arial'),
+          panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+    )
+
+plot_scatter_mean_sd_mal <-   
+  ggplot(meanSDCompMatAdjPlantDiffSca) +
+  geom_point(aes(x = Malformation,
+             y = Malformation_SD,
+             color = Plant),
+             size = 6
+             ) +
+  geom_hline(yintercept = 0, color = "black") + 
+  geom_vline(xintercept = 0, color = "black") +
+  scale_x_continuous(limits = c(-2,3)) +
+  scale_y_continuous(limits = c(-2,3)) +
+  scale_colour_discrete(palette = 'Set2') +
+  labs(x = 'Malformation mean rate difference between UV and CON',
+       y = 'Malformation rate variance difference between UV and CON') + 
+  theme_classic() + 
+  theme(plot.title = element_blank(), 
+        axis.title.y = element_text(size = 14, family = 'arial'),
+        axis.text.y = element_text(size = 12, family = 'arial'),
+        axis.title.x = element_text(size = 14, family = 'arial'),
+        axis.text.x = element_text(size = 12, family = 'arial'),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+  )
+
+plot_scatter_mean_sd_gcms <-   
+  ggplot(meanSDCompMatAdjPlantDiffSca) +
+  geom_point(aes(x = GCMS,
+             y = GCMS_SD,
+             color = Plant),
+             size = 6
+             ) +
+  geom_hline(yintercept = 0, color = "black") + 
+  geom_vline(xintercept = 0, color = "black") +
+  scale_x_continuous(limits = c(-2,3)) +
+  scale_y_continuous(limits = c(-2,3)) +
+  scale_colour_discrete(palette = 'Set2') +
+  labs(x = 'GCMS signal difference between UV and CON',
+       y = 'GCMS signal variance difference between UV and CON') + 
+  theme_classic() + 
+  theme(plot.title = element_blank(), 
+        axis.title.y = element_text(size = 14, family = 'arial'),
+        axis.text.y = element_text(size = 12, family = 'arial'),
+        axis.title.x = element_text(size = 14, family = 'arial'),
+        axis.text.x = element_text(size = 12, family = 'arial'),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+  )
+
+plot_scatter_mean_sd_ftir <-   
+  ggplot(meanSDCompMatAdjPlantDiffSca) +
+  geom_point(aes(x = FTIR,
+             y = FTIR_SD,
+             color = Plant),
+             size = 6
+             ) +
+  geom_hline(yintercept = 0, color = "black") + 
+  geom_vline(xintercept = 0, color = "black") +
+  scale_x_continuous(limits = c(-2,3)) +
+  scale_y_continuous(limits = c(-2,3)) +
+  scale_colour_discrete(palette = 'Set2') +
+  labs(x = 'PLS fitted value difference between UV and CON',
+       y = 'PLS fitted value variance difference between UV and CON') + 
+  theme_classic() + 
+  theme(plot.title = element_blank(), 
+        axis.title.y = element_text(size = 14, family = 'arial'),
+        axis.text.y = element_text(size = 12, family = 'arial'),
+        axis.title.x = element_text(size = 14, family = 'arial'),
+        axis.text.x = element_text(size = 12, family = 'arial'),
+        panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+  )
+```
+
+```{r}
+#| label: Mean and sd comparision - figure
+#| fig-width: 16
+#| fig-height: 16
+#| fig-dpi: 600
+#| echo: false
+#| output: true
+#| warning: false
+#| message: false
+(plot_mean_com_mal_gcms | plot_mean_com_mal_ftir) /
+  (plot_scatter_mean_sd_mal | plot_scatter_mean_sd_gcms)
+```

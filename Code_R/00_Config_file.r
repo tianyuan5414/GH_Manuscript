@@ -42,7 +42,9 @@ package_list <- list(
   "patchwork",
   "ggdist",
   "viridisLite",
-  "RColorBrewer"
+  "RColorBrewer",
+  "ggpmisc",
+  "ggforce"
 )
 
 
@@ -92,6 +94,7 @@ source(here::here("Code_R", "Plot_Box_Plant.r"))
 source(here::here("Code_R", "Pick_Num_Components.r"))
 source(here::here("Code_R", "Analysis_Significance_Test.r"))
 source(here::here("Code_R", "Analysis_Significance_Marker.r"))
+source(here::here("Code_R", "Analysis_Mean_SD_Comparison.r"))
 #-----------------------------------------------------------
 # 4. Interactive-only: ggplot theme
 #-----------------------------------------------------------

@@ -61,7 +61,7 @@ sig_test_stu_t <- function(dataList,
     tempStuTMat[1:length(tempVarIndex2), 2] <- dataList[[loopI]][[varNameVec[loopI]]][tempVarIndex2]
     
     tempListTtestResu[[loopI]] <- t.test(tempStuTMat[, 1], tempStuTMat[, 2],
-                                         var.equal = FALSE, alternative = 'greater')
+                                         var.equal = FALSE, alternative = 'two.sided')
   }
   
   #Create matrix for recording all significance test results
