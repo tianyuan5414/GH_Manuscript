@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.8.25">
+<meta name="generator" content="quarto-1.9.36">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -10,6 +10,9 @@
 
 <title>UAC signals in Pine cuttings and cultivars - refined pipeline</title>
 <style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
 div.columns{display: flex; gap: min(4vw, 1.5em);}
@@ -62,15 +65,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="Pipeline_GH2025_2_files/libs/clipboard/clipboard.min.js"></script>
 <script src="Pipeline_GH2025_2_files/libs/quarto-html/quarto.js" type="module"></script>
 <script src="Pipeline_GH2025_2_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="Pipeline_GH2025_2_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
 <script src="Pipeline_GH2025_2_files/libs/quarto-html/popper.min.js"></script>
 <script src="Pipeline_GH2025_2_files/libs/quarto-html/tippy.umd.min.js"></script>
 <script src="Pipeline_GH2025_2_files/libs/quarto-html/anchor.min.js"></script>
 <link href="Pipeline_GH2025_2_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="Pipeline_GH2025_2_files/libs/quarto-html/quarto-syntax-highlighting-7b89279ff1a6dce999919e0e67d4d9ec.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="Pipeline_GH2025_2_files/libs/quarto-html/quarto-syntax-highlighting-845c23b38eaddc0f92fda52bfe77a8c8.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="Pipeline_GH2025_2_files/libs/bootstrap/bootstrap.min.js"></script>
 <link href="Pipeline_GH2025_2_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="Pipeline_GH2025_2_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="Pipeline_GH2025_2_files/libs/bootstrap/bootstrap-138a6193a3bd40baf1e627da441a4734.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 
 
 </head>
@@ -207,11 +209,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <colgroup>
-<col style="width: 65%">
-<col style="width: 9%">
-<col style="width: 10%">
+<col style="width: 57%">
 <col style="width: 8%">
-<col style="width: 6%">
+<col style="width: 9%">
+<col style="width: 7%">
+<col style="width: 5%">
+<col style="width: 7%">
+<col style="width: 4%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -220,6 +224,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <th style="text-align: left;">CON_Mean</th>
 <th style="text-align: left;">Sig</th>
 <th style="text-align: left;">Mark</th>
+<th style="text-align: left;">t</th>
+<th style="text-align: left;">n</th>
 </tr>
 </thead>
 <tbody>
@@ -229,6 +235,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4493</td>
 <td style="text-align: left;">0.9718</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">-0.035</td>
+<td style="text-align: left;">385</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">UV - Potted cultivars and branch cuttings - GCMS</td>
@@ -236,6 +244,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4116</td>
 <td style="text-align: left;">0</td>
 <td style="text-align: left;">***</td>
+<td style="text-align: left;">23.427</td>
+<td style="text-align: left;">67</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Control - Potted cultivars and branch cuttings - GCMS</td>
@@ -243,6 +253,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4118</td>
 <td style="text-align: left;">0</td>
 <td style="text-align: left;">***</td>
+<td style="text-align: left;">21.429</td>
+<td style="text-align: left;">70</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Potted cultivars - UV and Control - GCMS</td>
@@ -250,6 +262,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.6095</td>
 <td style="text-align: left;">0.7214</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">-0.358</td>
+<td style="text-align: left;">72</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Branch cuttings - UV and Control - GCMS</td>
@@ -257,6 +271,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4118</td>
 <td style="text-align: left;">0.9786</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">-0.027</td>
+<td style="text-align: left;">301</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Donor plant 1 - UV and Control - GCMS</td>
@@ -264,6 +280,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4807</td>
 <td style="text-align: left;">0.0021</td>
 <td style="text-align: left;">***</td>
+<td style="text-align: left;">-3.308</td>
+<td style="text-align: left;">37</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Donor plant 2 - UV and Control - GCMS</td>
@@ -271,6 +289,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4269</td>
 <td style="text-align: left;">0.8982</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">-0.128</td>
+<td style="text-align: left;">67</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Donor plant 3 - UV and Control - GCMS</td>
@@ -278,6 +298,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.3259</td>
 <td style="text-align: left;">0.2281</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">1.224</td>
+<td style="text-align: left;">39</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Donor plant 4 - UV and Control - GCMS</td>
@@ -285,6 +307,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4435</td>
 <td style="text-align: left;">0.697</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">0.392</td>
+<td style="text-align: left;">41</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Donor plant 5 - UV and Control - GCMS</td>
@@ -292,6 +316,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4055</td>
 <td style="text-align: left;">0.2999</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">1.066</td>
+<td style="text-align: left;">19</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Donor plant 6 - UV and Control - GCMS</td>
@@ -299,6 +325,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.3929</td>
 <td style="text-align: left;">0.7525</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">-0.317</td>
+<td style="text-align: left;">57</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">UV and Control - FTIR</td>
@@ -306,6 +334,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.437</td>
 <td style="text-align: left;">0.098</td>
 <td style="text-align: left;">*</td>
+<td style="text-align: left;">1.659</td>
+<td style="text-align: left;">349</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">UV - Potted cultivars and branch cuttings - FTIR</td>
@@ -313,6 +343,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4141</td>
 <td style="text-align: left;">0</td>
 <td style="text-align: left;">***</td>
+<td style="text-align: left;">31.762</td>
+<td style="text-align: left;">78</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Control - Potted cultivars and branch cuttings - FTIR</td>
@@ -320,6 +352,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4087</td>
 <td style="text-align: left;">0</td>
 <td style="text-align: left;">***</td>
+<td style="text-align: left;">28.425</td>
+<td style="text-align: left;">56</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Potted cultivars - UV and Control - FTIR</td>
@@ -327,6 +361,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.6042</td>
 <td style="text-align: left;">0.735</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">0.34</td>
+<td style="text-align: left;">53</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Branch cuttings - UV and Control - FTIR</td>
@@ -334,6 +370,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4087</td>
 <td style="text-align: left;">0.3236</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">0.989</td>
+<td style="text-align: left;">279</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Donor plant 1 - UV and Control - FTIR</td>
@@ -341,6 +379,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4673</td>
 <td style="text-align: left;">0.0228</td>
 <td style="text-align: left;">**</td>
+<td style="text-align: left;">-2.613</td>
+<td style="text-align: left;">12</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Donor plant 2 - UV and Control - FTIR</td>
@@ -348,6 +388,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4209</td>
 <td style="text-align: left;">0.3019</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">1.041</td>
+<td style="text-align: left;">65</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Donor plant 3 - UV and Control - FTIR</td>
@@ -355,6 +397,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.3255</td>
 <td style="text-align: left;">0.0044</td>
 <td style="text-align: left;">***</td>
+<td style="text-align: left;">3.01</td>
+<td style="text-align: left;">43</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Donor plant 4 - UV and Control - FTIR</td>
@@ -362,6 +406,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4445</td>
 <td style="text-align: left;">0.7118</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">0.372</td>
+<td style="text-align: left;">46</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">Donor plant 5 - UV and Control - FTIR</td>
@@ -369,6 +415,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.4203</td>
 <td style="text-align: left;">0.0021</td>
 <td style="text-align: left;">***</td>
+<td style="text-align: left;">3.488</td>
+<td style="text-align: left;">22</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">Donor plant 6 - UV and Control - FTIR</td>
@@ -376,6 +424,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td style="text-align: left;">0.3939</td>
 <td style="text-align: left;">0.7308</td>
 <td style="text-align: left;"></td>
+<td style="text-align: left;">0.346</td>
+<td style="text-align: left;">60</td>
 </tr>
 </tbody>
 </table>

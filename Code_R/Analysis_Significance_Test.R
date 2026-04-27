@@ -66,13 +66,15 @@ sig_test_stu_t <- function(dataList,
   
   #Create matrix for recording all significance test results
   tempStuTMatAll <- matrix(nrow = length(dataList),
-                           ncol = 5,
+                           ncol = 7,
                            dimnames = list(c(),
                                            c('Group',
                                              'UV_Mean',
                                              'CON_Mean',
                                              'Sig',
-                                             'Mark')))
+                                             'Mark',
+                                             't',
+                                             'n')))
   
   tempStuTMatAll[, 1] <- dataListNameVec
   
@@ -83,6 +85,10 @@ sig_test_stu_t <- function(dataList,
     tempStuTMatAll[loopI, 4] <- round(tempListTtestResu[[loopI]][[3]], 4)
     
     tempStuTMatAll[loopI, 5] <- sigMarkter(tempStuTMatAll[loopI, 4], c(0.1, 0.05, 0.01))
+    
+    tempStuTMatAll[loopI, 6] <- round(tempListTtestResu[[loopI]][[1]], 3)
+    
+    tempStuTMatAll[loopI, 7] <- round(tempListTtestResu[[loopI]][[2]], 0)
   }
   
   #Output the significance test results
