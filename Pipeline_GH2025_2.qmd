@@ -929,6 +929,8 @@ studTAnaResuTab <- sig_test_stu_t(studTDataList,
 ```{r}
 #| label: show the significance test results
 knitr::kable(studTAnaResuTab)
+
+write.csv(studTAnaResuTab, file = file.path('Figures_R', 'studTAnaResuTab.csv'))
 ```
 
 ## Donor plant comparison - mean and variance of malformation rates/GCMS/FTIR signals
