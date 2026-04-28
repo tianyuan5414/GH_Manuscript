@@ -434,6 +434,10 @@ plot_sig_2nd_residuals_cut <- plot_pls_residuals(pls_sig_2nd_cut,
  (plot_2nd_spec_cut | plot_sig_2nd_scatter_cut) /
     (plot_sig_2nd_variances_cut | plot_sig_2nd_coefficients_cut) /
     (plot_sig_2nd_loadings_cut | plot_sig_2nd_residuals_cut)
+
+(plot_2nd_spec_cul | plot_2nd_spec_cut) /
+    (plot_sig_2nd_scatter_cul | plot_sig_2nd_scatter_cut) /
+    (plot_sig_2nd_coefficients_cul | plot_sig_2nd_coefficients_cut)
 ```
 
 ```{r}
@@ -630,6 +634,17 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
 (plot_GCMS[[1]]|plot_PLS_Fitted[[1]]) /
   (plot_GCMS_Materials[[1]]|plot_PLS_Fitted_Materials[[1]]) /
   (plot_GCMS_Plant[[1]]|plot_PLS_Fitted_Plant[[1]])
+
+#Output as pdf
+pdf(file = file.path('Figures_R', 'Boxplot_Comp.pdf'),   # The directory you want to save the file in
+    width = 8, # The width of the plot in inches
+    height = 12)
+
+(plot_GCMS[[1]]|plot_PLS_Fitted[[1]]) /
+  (plot_GCMS_Materials[[1]]|plot_PLS_Fitted_Materials[[1]]) /
+  (plot_GCMS_Plant[[1]]|plot_PLS_Fitted_Plant[[1]])
+  
+dev.off()
 ```
 
 ## Malformation rates of pollen grains
@@ -1308,4 +1323,13 @@ plot_scatter_mean_sd_ftir <-
 #| message: false
 (plot_mean_com_mal_gcms | plot_mean_com_mal_ftir) /
   (plot_scatter_mean_sd_mal | plot_scatter_mean_sd_gcms)
+
+#Output as pdf
+pdf(file = file.path('Figures_R', 'Signal_Mal_Comp.pdf'),   # The directory you want to save the file in
+    width = 12, # The width of the plot in inches
+    height = 6)
+
+(plot_mean_com_mal_gcms | plot_mean_com_mal_ftir)
+  
+dev.off()
 ```
