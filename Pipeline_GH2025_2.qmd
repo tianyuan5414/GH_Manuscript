@@ -100,13 +100,14 @@ processing_steps_ftir5 <- list(
 data_preprocessed <- list(
   cbind(
     unique_id = rawFTIRSpec[, 3],
+    materials = rawFTIRSpec[, 5],
     corrected5 = run_preprocessing_list(rawFTIRSpec[, c(-1:-2,-4:-10)], processing_steps_ftir5)
   )
 )
 data_preprocessed <- lapply(data_preprocessed, as.data.frame)
 for (loopI in 1:length(data_preprocessed)) {
-  data_preprocessed[[loopI]][, -1] <-
-    apply(data_preprocessed[[loopI]][, -1], c(1,2), as.numeric)
+  data_preprocessed[[loopI]][, -1:-2] <-
+    apply(data_preprocessed[[loopI]][, -1:-2], c(1,2), as.numeric)
 }
 
 rm(processing_steps_ftir5)
@@ -135,6 +136,45 @@ data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
 
 plot_2nd_spec_cul /
   plot_2nd_spec_cut
+```
+
+## PCA analysis on 2nd derivative FTIR spectra
+
+The 2nd derivative spectra were input into principle component analysis (PCA) package, to investigate the spectral difference between branch cuttings and pot cultivars
+
+```{r}
+#| label: PCA biplot and loading arrows
+#| echo: false
+#| warning: false
+#| message: false
+
+#Convert the list of processed data into a dataframe
+pcaDF2ndFTIR <- cbind.data.frame(data_preprocessed)
+rownames(pcaDF2ndFTIR) <- 1:nrow(pcaDF2ndFTIR)
+
+#Apply the PCA model
+pcaMod2ndFTIR <- run_pca(pcaDF2ndFTIR[, -2])
+
+#Calculate the length of loading arrows, and filtering out the longest 100
+pcaArrowLength <- pcaMod2ndFTIR$rotation[, 1]^2 + pcaMod2ndFTIR$rotation[, 2]^2
+pcaArrowLongest40 <- names(pcaArrowLength)[order(pcaArrowLength ,decreasing=T)[1:40]]
+
+#PCA biplot
+pcaBiplot2ndFTIR <- make_pca_biplot(
+  pca_model = pcaMod2ndFTIR,
+  sample_metadata = pcaDF2ndFTIR[, 1:2],
+  group_var = 'materials',
+  peaks = pcaArrowLongest40
+)
+
+#Output as pdf
+pdf(file = file.path('Figures_R', 'PCA.pdf'),   # The directory you want to save the file in
+    width = 12, # The width of the plot in inches
+    height = 10)
+
+pcaBiplot2ndFTIR
+  
+dev.off()
 ```
 
 ## Input GCMS signals

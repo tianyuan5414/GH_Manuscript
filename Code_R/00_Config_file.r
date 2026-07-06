@@ -44,7 +44,9 @@ package_list <- list(
   "viridisLite",
   "RColorBrewer",
   "ggpmisc",
-  "ggforce"
+  "ggforce",
+  'factoextra',
+  'FactoMineR'
 )
 
 
