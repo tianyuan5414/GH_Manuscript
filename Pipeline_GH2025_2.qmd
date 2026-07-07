@@ -126,7 +126,8 @@ data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
 ) +
   scale_y_reverse() +
   labs(title = 'Potted cultivars',
-       x = '')
+       x = '') +
+  theme(legend.position = 'none')
 
 plot_2nd_spec_cut <-
 data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
@@ -134,7 +135,9 @@ data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
   col_var = 'unique_id'
 ) +
     scale_y_reverse() +
-    labs(title = 'Branch cuttings')
+    labs(title = 'Branch cuttings') +
+  theme(legend.position = 'none')
+
 
 plot_2nd_spec_cul /
   plot_2nd_spec_cut
@@ -344,8 +347,13 @@ if (rawFTIRSpec[loopI, 5] == 'cul') {
 #Attach GCMS signals to  peak statistics (height or area)
 pcaMatHeight <- cbind(rawFTIRSpec,
                     GCDataMean[tempInd, c(1,2)])[, -11:-1772]
+
+data_preprocessed[[1]] <- data_preprocessed[[1]][, -2]
+
 colnames(pcaMatHeight)[11] <- 'pCA_ng_grain'
 pcaMatHeight <- pcaMatHeight[!is.na(pcaMatHeight[, 11]),]
+
+
 
 rm(loopI,
    tempInd)
@@ -725,6 +733,10 @@ cuttingsPlantsPlot <-
              aes(x = CON_Mal, y = UV_Mal, col = Plant)) +
   geom_point(aes(x = cultivarMean[3] , y = cultivarMean[1], 
                  color = 'Cultivars')) +
+  geom_point(aes(x = 0.015,
+                 y = 0.0157,
+                 color = 'Benca et al., 2018'),
+             size = 2) +
   geom_errorbar(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
                 aes(x = CON_Mal, y = UV_Mal, col = Plant,
                     ymin = UV_Mal - UV_Mal_sd,
@@ -749,6 +761,17 @@ cuttingsPlantsPlot <-
                 linewidth = 1,
                 width = 0.005,
                 orientation = 'y') +
+  geom_errorbar(aes(x = 0.015 , y = 0.0157, color = 'Benca et al., 2018',
+                    ymin = 0.0119,
+                    ymax = 0.0195),
+                linewidth = 1.5,
+                width = 0.005) +
+  geom_errorbar(aes(x = 0.015 , y = 0.0157, color = 'Benca et al., 2018',
+                    xmin = 0.0042,
+                    xmax = 0.0258),
+                linewidth = 1.5,
+                width = 0.005,
+                orientation = 'y') +
   geom_abline (slope=1, linetype = "dashed", color="grey") +
   scale_x_continuous(limits = c(-0.05, 0.15), name = 'CON malformation percentage',
                      breaks = seq(0, 0.15, by = 0.05)) +
@@ -761,7 +784,8 @@ cuttingsPlantsPlot <-
                                 '4' = brewer.pal(6, 'Set2')[4],
                                 '5' = brewer.pal(6, 'Set2')[5],
                                 '6' = brewer.pal(6, 'Set2')[6],
-                                'Cultivars' = 'black')) +
+                                'Cultivars' = 'black',
+                                'Benca et al., 2018' = 'blue')) +
   theme_classic() +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
@@ -788,6 +812,15 @@ rm(tempVec)
 #| warning: false
 #| message: false
 cuttingsPlantsPlot
+
+#Output as pdf
+pdf(file = file.path('Figures_R', 'Malformation.pdf'),   # The directory you want to save the file in
+    width = 12, # The width of the plot in inches
+    height = 12)
+
+cuttingsPlantsPlot
+
+dev.off()
 ```
 
 ## Student-t analysis on GC-MS signals and PLS fitted values from FTIR spectra
@@ -1194,33 +1227,45 @@ meanSDCompMatAdjPlant <- cbind(meanSDCompMatAdj[4:15,2:4],
                                FTIR = meanSDCompMatAdj[34:45,4],
                                FTIR_SD = meanSDCompMatAdj[34:45,5])
 colnames(meanSDCompMatAdjPlant)[3] <- 'Malformation'
+
+#Add cultivars GCMS, FTIR and malformation data to the plotting data frame
+meanSDCompMatAdjPlant <- rbind(meanSDCompMatAdjPlant,
+                               c('UV', 'Cultivars', cultivarMean[1], cultivarMean[2],
+                                 as.numeric(studTAnaResuTab[1,2]),
+                                 NA,
+                                 as.numeric(studTAnaResuTab[12,2]),
+                                 NA),
+                               c('CON', 'Cultivars', cultivarMean[3], cultivarMean[4],
+                                 as.numeric(studTAnaResuTab[1,3]),
+                                 NA,
+                                 as.numeric(studTAnaResuTab[12,3]),
+                                 NA))
+
 meanSDCompMatAdjPlant <- as.data.frame(meanSDCompMatAdjPlant)
 meanSDCompMatAdjPlant[,3:8] <- apply(meanSDCompMatAdjPlant[, 3:8], c(1,2), as.numeric)
-meanSDCompMatAdjPlantDiff <- cbind(Plant = meanSDCompMatAdjPlant[1:6, 2],
-                                   Malformation = meanSDCompMatAdjPlant[1:6,3] - 
-                                     meanSDCompMatAdjPlant[7:12,3],
-                                   Malformation_SD = meanSDCompMatAdjPlant[1:6,4] - 
-                                     meanSDCompMatAdjPlant[7:12,4],
-                                   GCMS = meanSDCompMatAdjPlant[1:6,5] - 
-                                     meanSDCompMatAdjPlant[7:12,5],
-                                   GCMS_SD = meanSDCompMatAdjPlant[1:6,6] - 
-                                     meanSDCompMatAdjPlant[7:12,6],
-                                   FTIR = meanSDCompMatAdjPlant[1:6,7] - 
-                                     meanSDCompMatAdjPlant[7:12,7],
-                                   FTIR_SD = meanSDCompMatAdjPlant[1:6,8] - 
-                                     meanSDCompMatAdjPlant[7:12,8])
-meanSDCompMatAdjPlantDiff <- as.data.frame(meanSDCompMatAdjPlantDiff)
-meanSDCompMatAdjPlantDiff[,2:7] <- apply(meanSDCompMatAdjPlantDiff[2:7], c(1,2), as.numeric)
-meanSDCompMatAdjPlantDiffSca <- meanSDCompMatAdjPlantDiff
-meanSDCompMatAdjPlantDiffSca[, -1] <- apply(meanSDCompMatAdjPlantDiffSca[,-1], 2, scale)
 
 #Scatter plot on malformation rate and GCMS signal, sub-groupped by donor plant
-plot_mean_com_mal_gcms <- ggplot(meanSDCompMatAdjPlant,
-                                 aes(x = GCMS,
-                                     y = Malformation)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  stat_poly_eq(aes(label = paste(after_stat(eq.label), 
+plot_mean_com_mal_gcms <- ggplot(meanSDCompMatAdjPlant) +
+  geom_point(data = meanSDCompMatAdjPlant[1:12,],
+    aes(x = GCMS,
+                 y = Malformation,
+                 color = 'Cuttings')) +
+  geom_point(data = meanSDCompMatAdjPlant[13:14,],
+             aes(x = GCMS,
+                 y = Malformation,
+                 color = 'Cultivars')) +
+  geom_smooth(data = meanSDCompMatAdjPlant,
+              aes(x = GCMS,
+                  y = Malformation),
+              method = "lm",
+              color = 'black') +
+  scale_color_manual(name = 'Plant',
+                     values = c('Cuttings' = 'blue',
+                                'Cultivars' = 'red')
+                     ) +
+  stat_poly_eq(aes(x = GCMS,
+                   y = Malformation,
+                   label = paste(after_stat(eq.label), 
                                    after_stat(rr.label), 
                                    sep = "*\", \"*")), 
                  formula = y ~ x, parse = TRUE) +
@@ -1232,39 +1277,35 @@ plot_mean_com_mal_gcms <- ggplot(meanSDCompMatAdjPlant,
           axis.text.y = element_text(size = 12, family = 'arial'),
           axis.title.x = element_text(size = 14, family = 'arial'),
           axis.text.x = element_text(size = 12, family = 'arial'),
-          panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
+          panel.border = element_rect(colour = "black", fill=NA, linewidth=1),
+          legend.position = 'none'
     )
 
-plot_mean_com_mal_gcms_diff <-
-  ggplot(meanSDCompMatAdjPlantDiff,
-                                 aes(x = GCMS,
-                                     y = Malformation)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  stat_poly_eq(aes(label = paste(after_stat(eq.label), 
-                                   after_stat(rr.label), 
-                                   sep = "*\", \"*")), 
-                 formula = y ~ x, parse = TRUE) +
-    labs(x = 'GC-MS (ng/150gr) difference between UV and CON',
-         y = 'Malformation rate difference between UV and CON') + 
-    theme_classic() + 
-    theme(plot.title = element_blank(), 
-          axis.title.y = element_text(size = 14, family = 'arial'),
-          axis.text.y = element_text(size = 12, family = 'arial'),
-          axis.title.x = element_text(size = 14, family = 'arial'),
-          axis.text.x = element_text(size = 12, family = 'arial'),
-          panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
-    )
-
-plot_mean_com_mal_ftir <- ggplot(meanSDCompMatAdjPlant,
-                                 aes(x = FTIR,
-                                     y = Malformation)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  stat_poly_eq(aes(label = paste(after_stat(eq.label), 
-                                   after_stat(rr.label), 
-                                   sep = "*\", \"*")), 
-                 formula = y ~ x, parse = TRUE) +
+plot_mean_com_mal_ftir <- ggplot(data = meanSDCompMatAdjPlant) +
+  geom_point(data = meanSDCompMatAdjPlant[1:12,],
+             aes(x = FTIR,
+                 y = Malformation,
+                 color = 'Cuttings')
+             ) +
+  geom_point(data = meanSDCompMatAdjPlant[13:14,],
+             aes(x = FTIR,
+                 y = Malformation,
+                 color = 'Cultivars')) +
+  geom_smooth(data = meanSDCompMatAdjPlant,
+              aes(x = FTIR,
+                  y = Malformation),
+              method = "lm",
+              color = 'black') +
+  scale_color_manual(name = 'Plant',
+                     values = c('Cuttings' = 'blue',
+                                'Cultivars' = 'red')
+  ) +
+  stat_poly_eq(aes(x = FTIR,
+                   y = Malformation,
+                   label = paste(after_stat(eq.label), 
+                                 after_stat(rr.label), 
+                                 sep = "*\", \"*")), 
+               formula = y ~ x, parse = TRUE) +
     labs(x = 'PLS fitted values',
          y = 'Malformation rate') + 
     theme_classic() + 
@@ -1275,96 +1316,6 @@ plot_mean_com_mal_ftir <- ggplot(meanSDCompMatAdjPlant,
           axis.text.x = element_text(size = 12, family = 'arial'),
           panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
     )
-
-plot_mean_com_mal_ftir_diff <-
-  ggplot(meanSDCompMatAdjPlantDiff,
-                                 aes(x = FTIR,
-                                     y = Malformation)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  stat_poly_eq(aes(label = paste(after_stat(eq.label), 
-                                   after_stat(rr.label), 
-                                   sep = "*\", \"*")), 
-                 formula = y ~ x, parse = TRUE) +
-    labs(x = 'GC-MS (ng/150gr) difference between UV and CON',
-         y = 'Malformation rate difference between UV and CON') + 
-    theme_classic() + 
-    theme(plot.title = element_blank(), 
-          axis.title.y = element_text(size = 14, family = 'arial'),
-          axis.text.y = element_text(size = 12, family = 'arial'),
-          axis.title.x = element_text(size = 14, family = 'arial'),
-          axis.text.x = element_text(size = 12, family = 'arial'),
-          panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
-    )
-
-plot_scatter_mean_sd_mal <-   
-  ggplot(meanSDCompMatAdjPlantDiffSca) +
-  geom_point(aes(x = Malformation,
-             y = Malformation_SD,
-             color = Plant),
-             size = 6
-             ) +
-  geom_hline(yintercept = 0, color = "black") + 
-  geom_vline(xintercept = 0, color = "black") +
-  scale_x_continuous(limits = c(-2,3)) +
-  scale_y_continuous(limits = c(-2,3)) +
-  scale_colour_discrete(palette = 'Set2') +
-  labs(x = 'Malformation mean rate difference between UV and CON',
-       y = 'Malformation rate variance difference between UV and CON') + 
-  theme_classic() + 
-  theme(plot.title = element_blank(), 
-        axis.title.y = element_text(size = 14, family = 'arial'),
-        axis.text.y = element_text(size = 12, family = 'arial'),
-        axis.title.x = element_text(size = 14, family = 'arial'),
-        axis.text.x = element_text(size = 12, family = 'arial'),
-        panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
-  )
-
-plot_scatter_mean_sd_gcms <-   
-  ggplot(meanSDCompMatAdjPlantDiffSca) +
-  geom_point(aes(x = GCMS,
-             y = GCMS_SD,
-             color = Plant),
-             size = 6
-             ) +
-  geom_hline(yintercept = 0, color = "black") + 
-  geom_vline(xintercept = 0, color = "black") +
-  scale_x_continuous(limits = c(-2,3)) +
-  scale_y_continuous(limits = c(-2,3)) +
-  scale_colour_discrete(palette = 'Set2') +
-  labs(x = 'GCMS signal difference between UV and CON',
-       y = 'GCMS signal variance difference between UV and CON') + 
-  theme_classic() + 
-  theme(plot.title = element_blank(), 
-        axis.title.y = element_text(size = 14, family = 'arial'),
-        axis.text.y = element_text(size = 12, family = 'arial'),
-        axis.title.x = element_text(size = 14, family = 'arial'),
-        axis.text.x = element_text(size = 12, family = 'arial'),
-        panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
-  )
-
-plot_scatter_mean_sd_ftir <-   
-  ggplot(meanSDCompMatAdjPlantDiffSca) +
-  geom_point(aes(x = FTIR,
-             y = FTIR_SD,
-             color = Plant),
-             size = 6
-             ) +
-  geom_hline(yintercept = 0, color = "black") + 
-  geom_vline(xintercept = 0, color = "black") +
-  scale_x_continuous(limits = c(-2,3)) +
-  scale_y_continuous(limits = c(-2,3)) +
-  scale_colour_discrete(palette = 'Set2') +
-  labs(x = 'PLS fitted value difference between UV and CON',
-       y = 'PLS fitted value variance difference between UV and CON') + 
-  theme_classic() + 
-  theme(plot.title = element_blank(), 
-        axis.title.y = element_text(size = 14, family = 'arial'),
-        axis.text.y = element_text(size = 12, family = 'arial'),
-        axis.title.x = element_text(size = 14, family = 'arial'),
-        axis.text.x = element_text(size = 12, family = 'arial'),
-        panel.border = element_rect(colour = "black", fill=NA, linewidth=1)
-  )
 ```
 
 ```{r}
@@ -1376,8 +1327,7 @@ plot_scatter_mean_sd_ftir <-
 #| output: true
 #| warning: false
 #| message: false
-(plot_mean_com_mal_gcms | plot_mean_com_mal_ftir) /
-  (plot_scatter_mean_sd_mal | plot_scatter_mean_sd_gcms)
+(plot_mean_com_mal_gcms | plot_mean_com_mal_ftir)
 
 #Output as pdf
 pdf(file = file.path('Figures_R', 'Signal_Mal_Comp.pdf'),   # The directory you want to save the file in
