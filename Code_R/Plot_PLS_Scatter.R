@@ -12,7 +12,7 @@ plot_pls_scatter <- function(plsModel, numComp) {
                 method = "lm") +
     annotate("text", x = -Inf, y = Inf, 
              label = lm_eqn2(numComp, plsModel), hjust = 0, vjust = 1, parse = TRUE) +
-    labs(x = 'PLS fitted values (peak height)',
+    labs(x = 'PLS fitted values',
          y = 'GC-MS (ng/150gr)') + 
     theme_classic() + 
     theme(plot.title = element_blank(), 

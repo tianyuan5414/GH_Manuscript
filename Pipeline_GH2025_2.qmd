@@ -124,6 +124,7 @@ data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
 ) +
+  scale_y_reverse() +
   labs(title = 'Potted cultivars',
        x = '')
 
@@ -132,6 +133,7 @@ data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
   group_var = 'unique_id',
   col_var = 'unique_id'
 ) +
+    scale_y_reverse() +
     labs(title = 'Branch cuttings')
 
 plot_2nd_spec_cul /
@@ -478,6 +480,17 @@ plot_sig_2nd_residuals_cut <- plot_pls_residuals(pls_sig_2nd_cut,
 (plot_2nd_spec_cul | plot_2nd_spec_cut) /
     (plot_sig_2nd_scatter_cul | plot_sig_2nd_scatter_cut) /
     (plot_sig_2nd_coefficients_cul | plot_sig_2nd_coefficients_cut)
+
+#Output as pdf
+pdf(file = file.path('Figures_R', 'PLS_Comp.pdf'),   # The directory you want to save the file in
+    width = 8, # The width of the plot in inches
+    height = 12)
+
+(plot_2nd_spec_cul | plot_2nd_spec_cut) /
+    (plot_sig_2nd_scatter_cul | plot_sig_2nd_scatter_cut) /
+    (plot_sig_2nd_coefficients_cul | plot_sig_2nd_coefficients_cut)
+  
+dev.off()
 ```
 
 ```{r}

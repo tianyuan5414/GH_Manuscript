@@ -74,8 +74,8 @@ view_lat     <- c(42.398, 42.452)
   heath_osm    <- fetch_osm("natural", "heath")
 
   forest_polys <- bind_rows(
-    wood_osm$osm_polygons  |> select(geometry),
-    forest_lu$osm_polygons |> select(geometry)
+    wood_osm$osm_polygons  |> dplyr::select(geometry),
+    forest_lu$osm_polygons |> dplyr::select(geometry)
   )
 }
 
@@ -250,6 +250,16 @@ map_geo <- ggplot() +
                    box.padding = 0.5, point.padding = 0.4,
                    min.segment.length = 0, fill = "white", alpha = 0.9,
                    inherit.aes = FALSE) +
+  # Copyright note for external data sources (bottom-right corner)
+  annotate("text",
+           x = Inf, y = -Inf,
+           hjust = 1.02, vjust = -0.4,
+           label = paste0(
+             "Elevation: AWS Terrain Tiles via elevatr  \u2022  ",
+             "Land cover: \u00a9 OpenStreetMap contributors (ODbL)  \u2022  ",
+             "Country outlines: Natural Earth"
+           ),
+           size = 2, color = "grey30", family = "arial") +
   # Limits set to raster extent — all layers share the same rectangle
   coord_sf(xlim = c(raster_xmin, raster_xmax),
            ylim = c(raster_ymin, raster_ymax),

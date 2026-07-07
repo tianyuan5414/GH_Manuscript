@@ -7,7 +7,7 @@ plot_box_plant <- function(dataMat,
   if (variableName == 'PLS') {
     yLabel <- 'PLS predicted values'
   } else {
-    yLabel <- 'UV GC-MS (ng/100gr)'
+    yLabel <- 'UV GC-MS (ng/150gr)'
   }
   
   plot_output <- ggplot() +
