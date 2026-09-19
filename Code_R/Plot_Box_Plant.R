@@ -17,38 +17,38 @@ plot_box_plant <- function(dataMat,
                      fill = factor(Treatment, levels = c('UV', 'CON'))),
                  outlier.shape = NA,
                  coef = Inf,
-                 alpha = 0.6) +
+                 alpha = 1) +
     geom_boxplot(data = dataMat[which(dataMat[['Materials']] == 'cul'),],
                  aes(x = 'Cultivars',
                      y = dataMat[[variableName]][which(dataMat[['Materials']] == 'cul')],
                      fill = factor(Treatment, levels = c('UV', 'CON'))),
                  outlier.shape = NA,
                  coef = Inf,
-                 alpha = 0.6) +
+                 alpha = 1) +
     geom_jitter(data = dataMat[which(dataMat[['Materials']] == 'cul'),],
                 aes(x = 'Cultivars',
                     y = dataMat[[variableName]][which(dataMat[['Materials']] == 'cul')],
                     fill = factor(Treatment, levels = c('UV', 'CON'))), shape=21, 
                 position = position_jitterdodge(0.6),
-                color = 'black',
+                color = NA,
                 stroke = 1,
-                size = 4,
-                alpha = 0.6) +
+                size = 2,
+                alpha = 0.3) +
     geom_jitter(data = dataMat[rowIndex,],
                 aes(x = factor(as.numeric(Sample_ID), levels = c(1:6)),
                     y = dataMat[[variableName]][rowIndex],
                     fill = factor(Treatment, levels = c('UV', 'CON'))), shape=21, 
                 position = position_jitterdodge(0.6),
-                color = 'black',
+                color = NA,
                 stroke = 1,
-                size = 4,
-                alpha = 0.6) +
+                size = 2,
+                alpha = 0.3) +
     scale_y_continuous(name = yLabel,
     ) +
-    scale_fill_manual(values = c('GCMS_UV' = 'red',
-                                 'GCMS_CON' = 'blue',
-                                 'UV' = 'red',
-                                 'CON' = 'blue'),
+    scale_fill_manual(values = c('GCMS_UV' = '#f2e7b1',
+                                 'GCMS_CON' = '#b1c8d4',
+                                 'UV' = '#f2e7b1',
+                                 'CON' = '#b1c8d4'),
                       labels = c('UV', 'CON', 'UV', 'CON'),
                       name = 'Treatment') +
     labs(x = 'Tree') +

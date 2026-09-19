@@ -110,6 +110,21 @@ for (loopI in 1:length(data_preprocessed)) {
     apply(data_preprocessed[[loopI]][, -1:-2], c(1,2), as.numeric)
 }
 
+data_preprocessedNew <- list(
+  cbind(
+    unique_id = rawFTIRSpec[, 3],
+    materials = rawFTIRSpec[, 5],
+    treatment = rawFTIRSpec[, 7],
+    corrected5 = run_preprocessing_list(rawFTIRSpec[, c(-1:-2,-4:-10)], processing_steps_ftir5)
+  )
+)
+
+data_preprocessedNew <- lapply(data_preprocessedNew, as.data.frame)
+for (loopI in 1:length(data_preprocessedNew)) {
+  data_preprocessedNew[[loopI]][, -1:-3] <-
+    apply(data_preprocessedNew[[loopI]][, -1:-3], c(1,2), as.numeric)
+}
+
 rm(processing_steps_ftir5)
 ```
 
@@ -147,6 +162,8 @@ plot_2nd_spec_cul /
 
 The 2nd derivative spectra were input into principle component analysis (PCA) package, to investigate the spectral difference between branch cuttings and pot cultivars
 
+write.csv(pcaDF2ndFTIR, file = file.path('Output_R', 'pcaDF2ndFTIR.csv'))
+
 ```{r}
 #| label: PCA biplot and loading arrows
 #| echo: false
@@ -158,7 +175,7 @@ pcaDF2ndFTIR <- cbind.data.frame(data_preprocessed)
 rownames(pcaDF2ndFTIR) <- 1:nrow(pcaDF2ndFTIR)
 
 #Apply the PCA model
-pcaMod2ndFTIR <- run_pca(pcaDF2ndFTIR[, -2])
+pcaMod2ndFTIR <- run_pca(pcaDF2ndFTIR[, -2:-3])
 
 #Calculate the length of loading arrows, and filtering out the longest 100
 pcaArrowLength <- pcaMod2ndFTIR$rotation[, 1]^2 + pcaMod2ndFTIR$rotation[, 2]^2
@@ -167,8 +184,8 @@ pcaArrowLongest40 <- names(pcaArrowLength)[order(pcaArrowLength ,decreasing=T)[1
 #PCA biplot
 pcaBiplot2ndFTIR <- make_pca_biplot(
   pca_model = pcaMod2ndFTIR,
-  sample_metadata = pcaDF2ndFTIR[, 1:2],
-  group_var = 'materials',
+  sample_metadata = pcaDF2ndFTIR[, 1:3],
+  group_var = c('materials'),
   peaks = pcaArrowLongest40
 )
 
@@ -726,66 +743,48 @@ cultivarMean[2] <- sd(tempVec[which(cultivarsBatchInfo[, 4] == 'UV')])
 cultivarMean[3] <- mean(tempVec[which(cultivarsBatchInfo[, 4] == 'CON')])
 cultivarMean[4] <- sd(tempVec[which(cultivarsBatchInfo[, 4] == 'CON')])
 
+#Create matrix for malformation bar plot
+malforMat <- matrix(nrow = 16,
+                    ncol = 3,
+                    dimnames = list(c(),
+                                    c('Plant',
+                                      'Treatment',
+                                      'Mal_Rate')))
+
+malforMat[, 1] <- c(1,1,
+                    2,2,
+                    3,3,
+                    4,4,
+                    5,5,
+                    6,6,
+                    'Cultivars', 'Cultivars',
+                    'Benca et al., 2018',
+                    'Benca et al., 2018')
+
+malforMat[, 2] <- rep(c('UV-B', 'Control'), 8)
+
+malforMat[c(1,3,5,7,9,11), 3] <- data_preprocessed_ftir_gcms_malformation[[1]][[3]][[2]]
+
+malforMat[c(1,3,5,7,9,11) + 1, 3] <- data_preprocessed_ftir_gcms_malformation[[1]][[3]][[3]]
+
+malforMat[c(13,14), 3] <- cultivarMean[c(1,3)]
+malforMat[c(15,16), 3] <- c(0.0157, 0.015)
+
+malforMat <- as.data.frame(malforMat)
+malforMat$Mal_Rate <- as.numeric(malforMat$Mal_Rate)
+
 #Point plot to compare ratios between con and uv treatment, on different plants
 cuttingsPlantsPlot <-
   ggplot() +
-  geom_point(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
-             aes(x = CON_Mal, y = UV_Mal, col = Plant)) +
-  geom_point(aes(x = cultivarMean[3] , y = cultivarMean[1], 
-                 color = 'Cultivars')) +
-  geom_point(aes(x = 0.015,
-                 y = 0.0157,
-                 color = 'Benca et al., 2018'),
-             size = 2) +
-  geom_errorbar(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
-                aes(x = CON_Mal, y = UV_Mal, col = Plant,
-                    ymin = UV_Mal - UV_Mal_sd,
-                    ymax = UV_Mal + UV_Mal_sd),
-                linewidth = 1,
-                width = 0.01) +
-  geom_errorbar(data = data_preprocessed_ftir_gcms_malformation[[1]][[3]],
-                aes(x = CON_Mal, y = UV_Mal, col = Plant,
-                    xmin = CON_Mal - CON_Mal_sd,
-                    xmax = CON_Mal + CON_Mal_sd),
-                linewidth = 1,
-                width = 0.01,
-                orientation = 'y') +
-  geom_errorbar(aes(x = cultivarMean[3] , y = cultivarMean[1], color = 'Cultivars',
-                    ymin = cultivarMean[1] - cultivarMean[2],
-                    ymax = cultivarMean[1] + cultivarMean[2]),
-                linewidth = 1,
-                width = 0.005) +
-  geom_errorbar(aes(x = cultivarMean[3] , y = cultivarMean[1], color = 'Cultivars',
-                    xmin = cultivarMean[3] - cultivarMean[4],
-                    xmax = cultivarMean[3] + cultivarMean[4]),
-                linewidth = 1,
-                width = 0.005,
-                orientation = 'y') +
-  geom_errorbar(aes(x = 0.015 , y = 0.0157, color = 'Benca et al., 2018',
-                    ymin = 0.0119,
-                    ymax = 0.0195),
-                linewidth = 1.5,
-                width = 0.005) +
-  geom_errorbar(aes(x = 0.015 , y = 0.0157, color = 'Benca et al., 2018',
-                    xmin = 0.0042,
-                    xmax = 0.0258),
-                linewidth = 1.5,
-                width = 0.005,
-                orientation = 'y') +
-  geom_abline (slope=1, linetype = "dashed", color="grey") +
-  scale_x_continuous(limits = c(-0.05, 0.15), name = 'CON malformation percentage',
-                     breaks = seq(0, 0.15, by = 0.05)) +
-  scale_y_continuous(limits = c(-0.05, 0.25), name = 'UV malformation percentage',
+  geom_bar(data = malforMat,
+             aes(x = Plant, y = Mal_Rate, fill = Treatment),
+           stat = 'identity',
+           position="dodge") +
+  scale_y_continuous(limits = c(0, 0.15), name = 'Malforming rate',
                      breaks = seq(0, 0.25, by = 0.05)) +
-  scale_color_manual(name = 'Plant',
-                     values = c('1' = brewer.pal(6, 'Set2')[1],
-                                '2' = brewer.pal(6, 'Set2')[2],
-                                '3' = brewer.pal(6, 'Set2')[3],
-                                '4' = brewer.pal(6, 'Set2')[4],
-                                '5' = brewer.pal(6, 'Set2')[5],
-                                '6' = brewer.pal(6, 'Set2')[6],
-                                'Cultivars' = 'black',
-                                'Benca et al., 2018' = 'blue')) +
+  scale_fill_manual(name = 'Treatment',
+                     values = c('UV-B' = '#f2e7b1',
+                                'Control' = '#b1c8d4')) +
   theme_classic() +
   theme(
     panel.border = element_rect(color = "black", fill = NA, linewidth = 1),
@@ -794,10 +793,16 @@ cuttingsPlantsPlot <-
     
     axis.text.y = element_text(size = 20, family = 'arial'),
     axis.title.y = element_text(size = 16, family = 'arial'),
-    legend.position = "inside",
-    legend.position.inside = c(0.8, 0.2),
     legend.text = element_text(size = 14, family = 'arial')
   )
+
+pdf(file = file.path('Figures_R', 'Malformation.pdf'),   # The directory you want to save the file in
+    width = 12, # The width of the plot in inches
+    height = 8)
+
+cuttingsPlantsPlot
+
+dev.off()
 
 rm(tempVec)
 ```
@@ -1249,19 +1254,23 @@ plot_mean_com_mal_gcms <- ggplot(meanSDCompMatAdjPlant) +
   geom_point(data = meanSDCompMatAdjPlant[1:12,],
     aes(x = GCMS,
                  y = Malformation,
-                 color = 'Cuttings')) +
+                 color = 'Cuttings',
+        shape = Treatment),
+    size = 4) +
   geom_point(data = meanSDCompMatAdjPlant[13:14,],
              aes(x = GCMS,
                  y = Malformation,
-                 color = 'Cultivars')) +
+                 color = 'Cultivars',
+                 shape = Treatment),
+             size = 4) +
   geom_smooth(data = meanSDCompMatAdjPlant,
               aes(x = GCMS,
                   y = Malformation),
               method = "lm",
               color = 'black') +
   scale_color_manual(name = 'Plant',
-                     values = c('Cuttings' = 'blue',
-                                'Cultivars' = 'red')
+                     values = c('Cuttings' = '#6c8f7e',
+                                'Cultivars' = '#f0d5d0')
                      ) +
   stat_poly_eq(aes(x = GCMS,
                    y = Malformation,
@@ -1285,20 +1294,24 @@ plot_mean_com_mal_ftir <- ggplot(data = meanSDCompMatAdjPlant) +
   geom_point(data = meanSDCompMatAdjPlant[1:12,],
              aes(x = FTIR,
                  y = Malformation,
-                 color = 'Cuttings')
+                 color = 'Cuttings',
+                 shape = Treatment),
+             size = 4
              ) +
   geom_point(data = meanSDCompMatAdjPlant[13:14,],
              aes(x = FTIR,
                  y = Malformation,
-                 color = 'Cultivars')) +
+                 color = 'Cultivars',
+                 shape = Treatment),
+             size = 4) +
   geom_smooth(data = meanSDCompMatAdjPlant,
               aes(x = FTIR,
                   y = Malformation),
               method = "lm",
               color = 'black') +
   scale_color_manual(name = 'Plant',
-                     values = c('Cuttings' = 'blue',
-                                'Cultivars' = 'red')
+                     values = c('Cuttings' = '#6c8f7e',
+                                'Cultivars' = '#f0d5d0')
   ) +
   stat_poly_eq(aes(x = FTIR,
                    y = Malformation,

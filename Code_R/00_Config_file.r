@@ -46,7 +46,8 @@ package_list <- list(
   "ggpmisc",
   "ggforce",
   'factoextra',
-  'FactoMineR'
+  'FactoMineR',
+  'ordr'
 )
 
 
