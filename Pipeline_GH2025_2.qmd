@@ -715,10 +715,9 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
 
 #Output as pdf
 pdf(file = file.path('Figures_R', 'Boxplot_Comp.pdf'),   # The directory you want to save the file in
-    width = 8, # The width of the plot in inches
+    width = 12, # The width of the plot in inches
     height = 12)
 
-(plot_GCMS[[1]]|plot_PLS_Fitted[[1]]) /
   (plot_GCMS_Materials[[1]]|plot_PLS_Fitted_Materials[[1]]) /
   (plot_GCMS_Plant[[1]]|plot_PLS_Fitted_Plant[[1]])
   

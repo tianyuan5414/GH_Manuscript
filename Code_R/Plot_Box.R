@@ -19,7 +19,7 @@ plot_box <- function(dataMat,
                    coef = Inf) +
       geom_jitter(aes(color = Materials), shape=16, position=position_jitter(0.2)) +
       labs(y = yLabel) +
-      scale_color_manual(values = c('cul' = 'red', 'cut' = 'blue'),
+      scale_color_manual(values = c('cul' = '#f0d5d0', 'cut' = '#6c8f7e'),
                          labels = c('Cultivars', 'Cuttings')) +
       theme_classic() +
       theme(plot.title = element_blank(), 
@@ -42,7 +42,7 @@ plot_box <- function(dataMat,
                   stroke = 1,
                   size = 2) +
       labs(y = yLabel) +
-      scale_fill_manual(values = c('cul' = 'red', 'cut' = 'blue'),
+      scale_fill_manual(values = c('cul' = '#f0d5d0', 'cut' = '#6c8f7e'),
                         labels = c('Cultivars', 'Cuttings')) +
       theme_classic() +
       theme(plot.title = element_blank(), 
