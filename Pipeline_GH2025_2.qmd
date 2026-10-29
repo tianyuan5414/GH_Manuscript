@@ -390,6 +390,7 @@ if (file.exists(file.path('Output_R', 'pls_sig_2nd_cul.RData'))) {
   load(file.path('Output_R', 'pls_sig_2nd_cul.RData'))
   
   load(file.path('Output_R', 'pls_sig_2nd_cut.RData'))
+
 }else {
   pls_sig_2nd_cul <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                     data_preprocessed[[1]][, -1],
@@ -397,11 +398,30 @@ if (file.exists(file.path('Output_R', 'pls_sig_2nd_cul.RData'))) {
                    pred_col = 'pCA_ng_grain',
                    crossval = 'CV')
   
-  pls_sig_2nd_cut <- run_pls_mod(cbind(pcaMatHeight[,1:10],
-                    data_preprocessed[[1]][, -1],
-                    pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),],
-                   pred_col = 'pCA_ng_grain',
-                   crossval = 'CV')
+  combined_data <- cbind(pcaMatHeight[,1:10],
+                         data_preprocessed[[1]][, -1],
+                         pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),]
+  
+  spectral_cols <- names(combined_data)[grepl("^\\d+", names(combined_data))]
+  X_train <- as.matrix(combined_data[, spectral_cols, drop = FALSE])
+  Y_train <- as.matrix(combined_data[, 'pCA_ng_grain', drop = FALSE])
+  
+  folds <- groupKFold(pcaMatHeight[, 8][which(pcaMatHeight[, 5] == 'cut')], k = 3)
+  
+  ctrl <- trainControl(
+    method = "cv",
+    index = folds
+  )
+  
+  pls_sig_2nd_cut <- train(
+    pCA_ng_grain ~ .,
+    data = as.data.frame(cbind(X_train, Y_train)),
+    method = "pls",
+    tuneLength = 15,
+    trControl = ctrl,
+    preProcess = c("center","scale")
+  )$finalModel
+  
   
   #Save the pls results as .RData indepecdently (so that they do not exceed the 100 MB limitation from GitHub)
   save(pls_sig_2nd_cul, file = file.path('Output_R', 'pls_sig_2nd_cul.RData'))
@@ -455,7 +475,7 @@ plot_sig_2nd_residuals_cul <- plot_pls_residuals(pls_sig_2nd_cul,
 numComps_sig_2nd_cut <- 2
 
 #Scatter plot
-plot_sig_2nd_scatter_cut <- plot_pls_scatter(plsModel = pls_sig_2nd_cut,
+plot_sig_2nd_scatter_cut <- plot_pls_scatter2(plsModel = pls_sig_2nd_cut,
                                      numComp = numComps_sig_2nd_cut)
 
 #Coefficients plot
@@ -503,10 +523,6 @@ plot_sig_2nd_residuals_cut <- plot_pls_residuals(pls_sig_2nd_cut,
     (plot_sig_2nd_variances_cut | plot_sig_2nd_coefficients_cut) /
     (plot_sig_2nd_loadings_cut | plot_sig_2nd_residuals_cut)
 
-(plot_2nd_spec_cul | plot_2nd_spec_cut) /
-    (plot_sig_2nd_scatter_cul | plot_sig_2nd_scatter_cut) /
-    (plot_sig_2nd_coefficients_cul | plot_sig_2nd_coefficients_cut)
-
 #Output as pdf
 pdf(file = file.path('Figures_R', 'PLS_Comp.pdf'),   # The directory you want to save the file in
     width = 8, # The width of the plot in inches
@@ -523,16 +539,6 @@ pdf(file = file.path('Figures_R', 'PLS_Comp_NMBU.pdf'),   # The directory you wa
     width = 8, # The width of the plot in inches
     height = 4)
   (plot_sig_2nd_variances_cul | plot_sig_2nd_variances_cut)
-
-dev.off()
-
-#Default approach to determine the number of component
-#Output as pdf
-pdf(file = file.path('Figures_R', 'PLS_Number_NMBU.pdf'),   # The directory you want to save the file in
-    width = 8, # The width of the plot in inches
-    height = 4)
-selectNcomp(pls_sig_2nd_cul, plot = TRUE)
-selectNcomp(pls_sig_2nd_cut, plot = TRUE)
 
 dev.off()
 ```
@@ -731,6 +737,10 @@ for (loopI in 1:length(plot_GCMS_Plant)) {
 (plot_GCMS[[1]]|plot_PLS_Fitted[[1]]) /
   (plot_GCMS_Materials[[1]]|plot_PLS_Fitted_Materials[[1]]) /
   (plot_GCMS_Plant[[1]]|plot_PLS_Fitted_Plant[[1]])
+
+#Output the overall results containing PLS values, GC-MS and malformation rates
+write.csv(data_preprocessed_ftir_gcms_malformation[[1]][[1]], file = 
+            file.path('Output_R', 'Climate_Room_2025_Tianyuan.csv'))
 
 #Output as pdf
 pdf(file = file.path('Figures_R', 'Boxplot_Comp.pdf'),   # The directory you want to save the file in

@@ -47,7 +47,9 @@ package_list <- list(
   "ggforce",
   'factoextra',
   'FactoMineR',
-  'ordr'
+  'ordr',
+  'plsRglm',
+  'caret'
 )
 
 
