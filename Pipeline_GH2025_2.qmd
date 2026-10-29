@@ -406,7 +406,7 @@ if (file.exists(file.path('Output_R', 'pls_sig_2nd_cul.RData'))) {
   X_train <- as.matrix(combined_data[, spectral_cols, drop = FALSE])
   Y_train <- as.matrix(combined_data[, 'pCA_ng_grain', drop = FALSE])
   
-  folds <- groupKFold(pcaMatHeight[, 8][which(pcaMatHeight[, 5] == 'cut')], k = 3)
+  folds <- groupKFold(pcaMatHeight[, 8][which(pcaMatHeight[, 5] == 'cut')], k = 5)
   
   ctrl <- trainControl(
     method = "cv",
@@ -1049,7 +1049,7 @@ studTAnaResuTab <- sig_test_stu_t(studTDataList,
 #| label: show the significance test results
 knitr::kable(studTAnaResuTab)
 
-write.csv(studTAnaResuTab, file = file.path('Figures_R', 'studTAnaResuTab.csv'))
+write.csv(studTAnaResuTab, file = file.path('Output_R', 'studTAnaResuTab.csv'))
 ```
 
 ## Donor plant comparison - mean and variance of malformation rates/GCMS/FTIR signals
