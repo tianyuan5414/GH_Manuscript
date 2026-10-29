@@ -363,7 +363,7 @@ if (rawFTIRSpec[loopI, 5] == 'cul') {
 pcaMatHeight <- cbind(rawFTIRSpec,
                     GCDataMean[tempInd, c(1,2)])[, -11:-1772]
 
-data_preprocessed[[1]] <- data_preprocessed[[1]][, -2]
+data_preprocessed[[1]] <- data_preprocessed[[1]][!is.na(pcaMatHeight[, 11]), -2]
 
 colnames(pcaMatHeight)[11] <- 'pCA_ng_grain'
 pcaMatHeight <- pcaMatHeight[!is.na(pcaMatHeight[, 11]),]
@@ -394,13 +394,14 @@ if (file.exists(file.path('Output_R', 'pls_sig_2nd_cul.RData'))) {
   pls_sig_2nd_cul <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                     data_preprocessed[[1]][, -1],
                     pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cul'),],
-                   pred_col = 'pCA_ng_grain')
-  
+                   pred_col = 'pCA_ng_grain',
+                   crossval = 'CV')
   
   pls_sig_2nd_cut <- run_pls_mod(cbind(pcaMatHeight[,1:10],
                     data_preprocessed[[1]][, -1],
                     pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),],
-                   pred_col = 'pCA_ng_grain')
+                   pred_col = 'pCA_ng_grain',
+                   crossval = 'CV')
   
   #Save the pls results as .RData indepecdently (so that they do not exceed the 100 MB limitation from GitHub)
   save(pls_sig_2nd_cul, file = file.path('Output_R', 'pls_sig_2nd_cul.RData'))
@@ -416,7 +417,8 @@ if (file.exists(file.path('Output_R', 'pls_sig_2nd_cul.RData'))) {
 #| warning: false
 #| message: false
 #Setup the number of components to be analysed
-numComps_sig_2nd_cul <- pick_num_comp(pls_sig_2nd_cul, 0.85)
+#numComps_sig_2nd_cul <- pick_num_comp(pls_sig_2nd_cul, 0.85)
+numComps_sig_2nd_cul <- 2
 
 #Scatter plot
 plot_sig_2nd_scatter_cul <- plot_pls_scatter(plsModel = pls_sig_2nd_cul,
@@ -449,7 +451,8 @@ plot_sig_2nd_residuals_cul <- plot_pls_residuals(pls_sig_2nd_cul,
                                          )
 
 #Setup the number of components to be analysed
-numComps_sig_2nd_cut <- pick_num_comp(pls_sig_2nd_cut, 0.85)
+# numComps_sig_2nd_cut <- pick_num_comp(pls_sig_2nd_cut, 0.85)
+numComps_sig_2nd_cut <- 2
 
 #Scatter plot
 plot_sig_2nd_scatter_cut <- plot_pls_scatter(plsModel = pls_sig_2nd_cut,
