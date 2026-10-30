@@ -56,22 +56,31 @@ The original FTIR spectra are between 4000 and 600 cm^-1^, with wavenumber inter
 
 plot_original_spec_cul <-
 rawFTIRSpec[rawFTIRSpec[, 5] == 'cul', c(-1:-2,-4:-10)] |> plot_spectra(
-  group_var = 'unique_id',
   col_var = 'unique_id'
 ) +
   labs(title = 'Potted cultivars',
-       x = '')
+       x = '') +
+  theme(legend.position = 'none')
 
 plot_original_spec_cut <-
 rawFTIRSpec[rawFTIRSpec[, 5] == 'cut', c(-1:-2,-4:-10)] |> plot_spectra(
-  group_var = 'unique_id',
   col_var = 'unique_id'
 ) +
-    labs(title = 'Branch cuttings')
+    labs(title = 'Branch cuttings')+
+  theme(legend.position = 'none')
 
 plot_original_spec_cul /
   plot_original_spec_cut
 
+#Output as pdf
+pdf(file = file.path('Figures_R', 'Raw_Spectra.pdf'),   # The directory you want to save the file in
+    width = 12, # The width of the plot in inches
+    height = 6)
+
+plot_original_spec_cul /
+  plot_original_spec_cut
+
+dev.off()
 ```
 
 ## Pretreating raw FTIR spectra - smoothing + 2nd derivatives
@@ -84,6 +93,35 @@ The raw FTIR spectra were firstly smoothed using Savitzky-Golay filter (width = 
 #| output: false
 #| warning: false
 #| message: false
+
+#Normalisation on the raw spectra
+rawFTIRSpec[, -1:-10] <- normalize_by_area(rawFTIRSpec[, -1:-10],
+                                           sort(as.numeric(colnames(rawFTIRSpec[, -1:-10]))))
+
+plot_normalisation_spec_cul <-
+  rawFTIRSpec[rawFTIRSpec[, 5] == 'cul', c(-1:-2,-4:-10)] |> plot_spectra(
+    col_var = 'unique_id'
+  ) +
+  labs(title = 'Potted cultivars',
+       x = '') +
+  theme(legend.position = 'none')
+
+plot_normalisation_spec_cut <-
+  rawFTIRSpec[rawFTIRSpec[, 5] == 'cut', c(-1:-2,-4:-10)] |> plot_spectra(
+    col_var = 'unique_id'
+  ) +
+  labs(title = 'Branch cuttings')+
+  theme(legend.position = 'none')
+
+#Output as pdf
+pdf(file = file.path('Figures_R', 'Nor_Spectra.pdf'),   # The directory you want to save the file in
+    width = 12, # The width of the plot in inches
+    height = 6)
+
+plot_normalisation_spec_cul /
+  plot_normalisation_spec_cut
+
+dev.off()
 
 #5 - smoothing + 2nd derivative
 processing_steps_ftir5 <- list(
@@ -156,6 +194,17 @@ data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cut',] |> plot_spectra(
 
 plot_2nd_spec_cul /
   plot_2nd_spec_cut
+
+
+#Output as pdf
+pdf(file = file.path('Figures_R', '2nd_Spectra.pdf'),   # The directory you want to save the file in
+    width = 12, # The width of the plot in inches
+    height = 8)
+
+plot_2nd_spec_cul /
+  plot_2nd_spec_cut
+
+dev.off()
 ```
 
 ## PCA analysis on 2nd derivative FTIR spectra
@@ -747,8 +796,8 @@ pdf(file = file.path('Figures_R', 'Boxplot_Comp.pdf'),   # The directory you wan
     width = 12, # The width of the plot in inches
     height = 12)
 
-  (plot_GCMS_Materials[[1]]|plot_PLS_Fitted_Materials[[1]]) /
-  (plot_GCMS_Plant[[1]]|plot_PLS_Fitted_Plant[[1]])
+  (plot_GCMS_Materials[[1]]| plot_GCMS_Plant[[1]]) /
+  (plot_PLS_Fitted_Materials[[1]] |plot_PLS_Fitted_Plant[[1]])
   
 dev.off()
 ```

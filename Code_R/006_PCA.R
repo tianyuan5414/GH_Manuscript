@@ -23,6 +23,10 @@
                           row.names = 1)
   colnames(rawFTIRSpec)[-1:-10] <- substring(colnames(rawFTIRSpec)[-1:-10], 2)
   
+  #Normalisation on the raw spectra
+  rawFTIRSpec[, -1:-10] <- normalize_by_area(rawFTIRSpec[, -1:-10],
+                                             sort(as.numeric(colnames(rawFTIRSpec[, -1:-10]))))
+  
   plot_original_spec_cul <-
     rawFTIRSpec[rawFTIRSpec[, 5] == 'cul', c(-1:-2,-4:-10)] |> plot_spectra(
       group_var = 'unique_id',
@@ -91,7 +95,7 @@ pcaDF2ndFTIR %>%
   as.matrix() %>%
   print() -> treat_data_arrows
 
-treat_data_arrows <- treat_data_arrows * 0.03
+treat_data_arrows <- treat_data_arrows * 0.0002
 colnames(treat_data_arrows) <- pcaArrowLongest40
 
 lm(treat_data_arrows ~ get_rows(treat_pca)) %>%
@@ -106,11 +110,11 @@ ordr::ggbiplot(treat_pca, sec.axes="cols", scale.factor=1) +
   # Add arrows
   geom_cols_vector(data = treat_data_arrows_plot,color="navy", size=1) +
   # Add ellipses - 95% confidence
-  geom_mark_ellipse(aes(group = materials), 
-                    stat = 'rows_ellipse',
-                    size=0.2, level=.95,
-                    label.buffer = unit(0.5, 'mm'),
-                    con.cap = 0) +
+  # geom_mark_ellipse(aes(group = materials), 
+  #                   stat = 'rows_ellipse',
+  #                   size=0.2, level=.95,
+  #                   label.buffer = unit(0.5, 'mm'),
+  #                   con.cap = 0) +
   # Add arrow labels
   geom_cols_text_radiate(data = treat_data_arrows_plot, aes(label= round(as.numeric(name))), size=4, color="navy") +
   scale_color_manual(values = c('#f0d5d0', '#6c8f7e')) +
