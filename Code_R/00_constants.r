@@ -49,3 +49,70 @@ colors_treatments <- setNames(
     "Untreated"
   )
 )
+
+multilevel_plsr <- function(df,
+                            xcols,
+                            ycol,
+                            sitecol)
+{
+  
+  X <- as.matrix(df[, xcols])
+  y <- df[[ycol]]
+  site <- factor(df[[sitecol]])
+  
+  ####################################
+  # Between-site component
+  ####################################
+  
+  X_between <- matrix(
+    NA,
+    nrow = nrow(X),
+    ncol = ncol(X)
+  )
+  
+  y_between <- rep(NA, length(y))
+  
+  for(s in levels(site)){
+    
+    idx <- which(site == s)
+    
+    Xmean <- colMeans(X[idx,,drop=FALSE])
+    ymean <- mean(y[idx])
+    
+    X_between[idx,] <- matrix(
+      rep(Xmean, length(idx)),
+      nrow = length(idx),
+      byrow = TRUE
+    )
+    
+    y_between[idx] <- ymean
+  }
+  
+  ####################################
+  # Within-site component
+  ####################################
+  
+  X_within <- X - X_between
+  y_within <- y - y_between
+  
+  ####################################
+  # Construct predictors
+  ####################################
+  
+  colnames(X_between) <- paste0("B_", colnames(X))
+  colnames(X_within) <- paste0("W_", colnames(X))
+  
+  Xall <- cbind(X_between, X_within)
+  
+  dat <- data.frame(y = y,
+                    Xall)
+  
+  fit <- plsr(
+    y ~ .,
+    data = dat,
+    validation = "CV",
+    method = "simpls"
+  )
+  
+  return(fit)
+}

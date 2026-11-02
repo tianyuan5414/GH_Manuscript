@@ -29,9 +29,9 @@ plot_pls_scatter <- function(plsModel, numComp) {
 plot_pls_scatter2 <- function(plsModel, numComp) {
   plsPlotHeight <- ggplot() + 
     geom_point(aes(x = plsModel$fitted.values[,,numComp],
-                   y = plsModel$model[[".outcome"]])) + 
+                   y = plsModel$model[["y"]])) + 
     geom_smooth(aes(x = plsModel$fitted.values[,,numComp],
-                    y = plsModel$model[[".outcome"]]),
+                    y = plsModel$model[["y"]]),
                 method = "lm") +
     annotate("text", x = -Inf, y = Inf, 
              label = lm_eqn3(numComp, plsModel), hjust = 0, vjust = 1, parse = TRUE) +

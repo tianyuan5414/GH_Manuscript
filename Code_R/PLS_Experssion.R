@@ -12,7 +12,7 @@ lm_eqn2 <- function(compI, plsModel){
 }
 
 lm_eqn3 <- function(compI, plsModel){
-  m <- lm(plsModel$model[[".outcome"]] ~ plsModel$fitted.values[,,compI]);
+  m <- lm(plsModel$model[["y"]] ~ plsModel$fitted.values[,,compI]);
   eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2,
                    list(a = format(unname(coef(m)[1]), digits = 2),
                         b = format(unname(coef(m)[2]), digits = 2),

@@ -58,8 +58,7 @@ plot_original_spec_cul <-
 rawFTIRSpec[rawFTIRSpec[, 5] == 'cul', c(-1:-2,-4:-10)] |> plot_spectra(
   col_var = 'unique_id'
 ) +
-  labs(title = 'Potted cultivars',
-       x = '') +
+  labs(title = 'Potted cultivars') +
   theme(legend.position = 'none')
 
 plot_original_spec_cut <-
@@ -178,8 +177,7 @@ data_preprocessed[[1]][rawFTIRSpec[, 5] == 'cul',] |> plot_spectra(
   col_var = 'unique_id'
 ) +
   scale_y_reverse() +
-  labs(title = 'Potted cultivars',
-       x = '') +
+  labs(title = 'Potted cultivars') +
   theme(legend.position = 'none')
 
 plot_2nd_spec_cut <-
@@ -489,25 +487,10 @@ if (file.exists(file.path('Output_R', 'pls_sig_2nd_cul.RData'))) {
                          data_preprocessed[[1]][, -1],
                          pCA_ng_grain = pcaMatHeight[, 11])[which(pcaMatHeight[, 5] == 'cut'),]
   
-  spectral_cols <- names(combined_data)[grepl("^\\d+", names(combined_data))]
-  X_train <- as.matrix(combined_data[, spectral_cols, drop = FALSE])
-  Y_train <- as.matrix(combined_data[, 'pCA_ng_grain', drop = FALSE])
-  
-  folds <- groupKFold(pcaMatHeight[, 8][which(pcaMatHeight[, 5] == 'cut')], k = 5)
-  
-  ctrl <- trainControl(
-    method = "cv",
-    index = folds
-  )
-  
-  pls_sig_2nd_cut <- train(
-    pCA_ng_grain ~ .,
-    data = as.data.frame(cbind(X_train, Y_train)),
-    method = "pls",
-    tuneLength = 15,
-    trControl = ctrl,
-    preProcess = c("center","scale")
-  )$finalModel
+  pls_sig_2nd_cut <- multilevel_plsr(combined_data,
+                                     xcols = 11:529,
+                                     ycol = 'pCA_ng_grain',
+                                     sitecol = 'Sample_ID')
   
   
   #Save the pls results as .RData indepecdently (so that they do not exceed the 100 MB limitation from GitHub)
@@ -559,7 +542,7 @@ plot_sig_2nd_residuals_cul <- plot_pls_residuals(pls_sig_2nd_cul,
 
 #Setup the number of components to be analysed
 # numComps_sig_2nd_cut <- pick_num_comp(pls_sig_2nd_cut, 0.85)
-numComps_sig_2nd_cut <- 2
+numComps_sig_2nd_cut <- 3
 
 #Scatter plot
 plot_sig_2nd_scatter_cut <- plot_pls_scatter2(plsModel = pls_sig_2nd_cut,
@@ -570,15 +553,16 @@ plot_sig_2nd_coefficients_cut <- plot_pls_coefficients(pls_sig_2nd_cut,
                                                numComp = numComps_sig_2nd_cut,
                                                wavenumberRange = c(800, 1800, 200),
                                                peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
-                                                          )
+                                                          ),
+                                               nested = TRUE
                                                )
 
 #Loadings plot
 plot_sig_2nd_loadings_cut <- plot_pls_loadings(pls_sig_2nd_cut,
                                                numComp = 1,
                                                wavenumberRange = c(800, 1800, 200),
-                                               peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])
-                                                          )
+                                               peakPos = (as.numeric(colnames(data_preprocessed[[1]])[-1])),
+                                               nested = TRUE
                                                )
 
 #Variance explained by different components
