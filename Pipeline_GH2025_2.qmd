@@ -461,7 +461,7 @@ rm(loopI,
 
 ## PLS analysis between FTIR spectra and GCMS signals
 
-In this section, the GCMS signals were input into PLS model as response variable, and pretreated FTIR spectral signals were input as independent variables. The decision on the number of component is made according to the accumulated variance explained by components, and the number is selected when \>85% variance is explained.
+In this section, the GCMS signals were input into PLS model as response variable, and pretreated FTIR spectral signals were input as independent variables. The decision on the number of component is made according to the accumulated variance explained by components.
 
 ```{r}
 #| label: run PLS
