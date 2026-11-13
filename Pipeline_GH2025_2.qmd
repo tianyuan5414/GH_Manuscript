@@ -612,6 +612,17 @@ pdf(file = file.path('Figures_R', 'PLS_Comp_NMBU.pdf'),   # The directory you wa
   (plot_sig_2nd_variances_cul | plot_sig_2nd_variances_cut)
 
 dev.off()
+
+#Output as pdf
+pdf(file = file.path('Figures_R', 'NComp_RMSEP.pdf'),   # The directory you want to save the file in
+    width = 8, # The width of the plot in inches
+    height = 4)
+selectNcomp(pls_sig_2nd_cul, plot = TRUE,
+            xlim = c(0, 50))
+selectNcomp(pls_sig_2nd_cut, plot = TRUE,
+            xlim = c(0, 50))
+
+dev.off()
 ```
 
 ```{r}
